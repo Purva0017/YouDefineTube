@@ -96,8 +96,14 @@ const loadSettings = async () => {
 const watchSettings = () => {
   storage.watch({
     settings: (chg) => {
-      settings = { ...defaults, ...((chg?.newValue as Partial<Settings>) || {}) }
+      const prev = { ...defaults, ...((chg?.oldValue as Partial<Settings>) || {}) }
+      const next = { ...defaults, ...((chg?.newValue as Partial<Settings>) || {}) }
+      settings = next
       applyCss()
+      // If user just enabled Hide Shorts while on a Shorts page, handle it now
+      if (!prev.hideShorts && next.hideShorts) {
+        handleShortsRoute()
+      }
     }
   })
 }
@@ -108,6 +114,8 @@ const tickUrl = () => {
   if (location.href !== lastUrl) {
     lastUrl = location.href
     applyCss()
+    handleShortsRoute()
+    handleWatchPauseFromFlag()
   }
   // re-check periodically; YouTube fires internal events but polling is robust
   setTimeout(tickUrl, 600)
@@ -116,5 +124,73 @@ const tickUrl = () => {
 ;(async function main() {
   await loadSettings()
   watchSettings()
+  // On first load as well
+  handleShortsRoute()
+  handleWatchPauseFromFlag()
   tickUrl()
 })()
+
+/**
+ * When Hide Shorts is enabled and the user lands on a Shorts page (/shorts/VIDEO_ID),
+ * prefer redirecting to the regular watch URL (/watch?v=VIDEO_ID) to avoid the
+ * Shorts UI. If we cannot parse the ID, pause/mute any playing video to stop audio.
+ */
+function handleShortsRoute() {
+  if (!settings?.hideShorts) return
+  const { pathname } = window.location
+  if (!pathname.startsWith("/shorts")) return
+
+  const parts = pathname.split("/").filter(Boolean)
+  // Expected: ["shorts", "VIDEO_ID"]
+  const id = parts[1]
+
+  if (id && !new URLSearchParams(window.location.search).get("v")) {
+    // Replace so Back goes to the previous non-Shorts page. Add pause flag to avoid autoplay.
+    const url = new URL(`${window.location.origin}/watch`)
+    url.searchParams.set("v", id)
+    url.searchParams.set("ydt_pause", "1")
+    const target = url.toString()
+    window.location.replace(target)
+    return
+  }
+
+  // Fallback: pause/mute if redirect not possible
+  const vid = document.querySelector<HTMLVideoElement>("video")
+  if (vid) {
+    try {
+      vid.pause()
+      vid.muted = true
+    } catch {}
+  }
+}
+
+/**
+ * If redirected from Shorts with ydt_pause=1, pause and mute the video on watch page.
+ * Clean up the URL param afterwards.
+ */
+function handleWatchPauseFromFlag() {
+  if (!settings?.hideShorts) return
+  const sp = new URLSearchParams(window.location.search)
+  if (sp.get("ydt_pause") !== "1") return
+
+  let attempts = 0
+  const maxAttempts = 30 // ~6s at 200ms intervals
+  const tryPause = () => {
+    const vid = document.querySelector<HTMLVideoElement>("video")
+    if (vid) {
+      try {
+        vid.muted = true
+        vid.pause()
+      } catch {}
+      // Remove the flag so refreshes don't keep pausing
+      sp.delete("ydt_pause")
+      const url = new URL(window.location.href)
+      url.search = sp.toString()
+      history.replaceState(null, "", url.toString())
+      return
+    }
+    attempts++
+    if (attempts < maxAttempts) setTimeout(tryPause, 200)
+  }
+  tryPause()
+}

@@ -1,33 +1,53 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# YouDefineTube 📺
 
-## Getting Started
+A premium browser extension designed to help you regain control over your YouTube experience. **YouDefineTube** combines sleek, distraction-blocking features with professional time-tracking to combat binge-watching and improve focus.
 
-First, run the development server:
+![Extension Preview](https://github.com/Purva0017/YouDefineTube/blob/main/screen.png)
 
-```bash
-pnpm dev
-# or
-npm run dev
-```
+## ✨ Key Features
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
+- **🎯 Distraction Blocker**: Toggle individual components of the YouTube UI:
+  - Hide Shorts (Homepage & Sidebar)
+  - Remove End Screen video suggestions
+  - Disable Comments and Live Chat
+  - Hide Homepage Recommendations
+- **⏳ Smart Daily Limits**:
+  - Set specific daily time goals.
+  - **Friction-based alerts**: A persistent overlay prevents further browsing once limits are reached.
+  - "Give me 5 more minutes" option (limited to twice per day).
+- **📊 Usage Analytics**:
+  - **Segmented Progress Bar**: Visualizes time spent **Watching**, **Browsing**, and **Searching**.
+  - Accuracy maintained across restarts and multiple tabs.
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
+## 🧠 Technical Challenges & Solutions
 
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
+*This section is what recruiters actually read to judge your skill level.*
 
-## Making production build
+### Challenge: Accurate Time Tracking Across Tabs
+**Problem**: Traditional timers stop when a tab is hidden, but users often keep YouTube running in the background or have 10 tabs open at once.
+**Solution**: I implemented a "Heartbeat" system using `Plasmo Storage` and `Background Service Workers`. It syncs a global state every second, ensuring that if you have 5 YouTube tabs open, your daily limit only counts 1 second per second, not 5.
 
-Run the following:
+### Challenge: Modern UI in a Restricted Environment
+**Problem**: Browser extension popups have strict sizing and styling limitations.
+**Solution**: I utilized a card-based design with **Vanilla CSS** and **React** to ensure a high-end "iOS-style" feel while keeping the bundle size small for fast loading.
 
-```bash
-pnpm build
-# or
-npm run build
-```
+## 🛠️ Tech Stack
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
+- **Core**: [Plasmo Framework](https://docs.plasmo.com) (MV3)
+- **Frontend**: React, TypeScript, Tailwind/Vanilla CSS
+- **State**: Plasmo Storage (Cross-tab synchronization)
 
-## Submit to the webstores
+## 🚀 Installation (Internal/Evaluation)
 
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+1. Clone the repo: `git clone <repo-url>`
+2. Install: `pnpm install`
+3. Dev Mode: `pnpm dev`
+4. Load the `build/chrome-mv3-dev` folder into Chrome via `chrome://extensions`.
+
+## 📜 License & Copyright
+
+**Proprietary – All Rights Reserved**
+
+Copyright (c) 2026 Purva Patel.
+
+This source code is shared **exclusively for evaluation and recruitment purposes**. No part of this project may be copied, redistributed, or used for commercial purposes without explicit written permission from the author.

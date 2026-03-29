@@ -82,3 +82,17 @@ export const getNextLocalMidnight = (timestamp: number) => {
   const date = new Date(timestamp)
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime()
 }
+
+export const getNextCustomTime = (now: number, hours: number, minutes: number) => {
+  const date = new Date(now)
+
+  // Set today’s custom time
+  date.setHours(hours, minutes, 0, 0)
+
+  // If that time already passed today → move to tomorrow
+  if (date.getTime() <= now) {
+    date.setDate(date.getDate() + 1)
+  }
+
+  return date.getTime()
+}

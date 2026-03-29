@@ -9,6 +9,7 @@ import {
   createEmptyDailyUsage,
   getLocalDateKey,
   getNextLocalMidnight,
+  getNextCustomTime,
   TIME_TRACKING_HISTORY_KEY,
   TIME_TRACKING_REPORT,
   TIME_TRACKING_TODAY_KEY,
@@ -54,6 +55,57 @@ const loadSettings = async () => {
   }
 }
 
+// Configuration for reset time (Default: 00:00 midnight)
+const RESET_HOURS = 0
+const RESET_MINUTES = 0
+
+// Set this to true only for force-reset testing
+const DEBUG_FORCE_RESET = false
+
+const setupMidnightAlarm = async () => {
+  const now = Date.now()
+  const resetTime = getNextCustomTime(now, RESET_HOURS, RESET_MINUTES)
+  
+  // Clear any existing alarms to avoid duplicates
+  await chrome.alarms.clear("midnight-reset")
+  await chrome.alarms.create("midnight-reset", { when: resetTime })
+  
+  console.log(`[YDT] Alarm successfully scheduled for: ${new Date(resetTime).toLocaleString()} (DEBUG_FORCE_RESET is ${DEBUG_FORCE_RESET})`)
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "midnight-reset") {
+    void (async () => {
+      console.log(`[YDT] Reset alarm triggered at ${new Date().toLocaleTimeString()}!`)
+      await enqueue(async () => {
+        await ensureInitialized()
+        
+        const todayKey = getLocalDateKey()
+        if (DEBUG_FORCE_RESET) {
+          console.log(`[YDT] DEBUG: Clearing history for ${todayKey} to force 0m reset...`)
+          delete historyCache[todayKey]
+        }
+        
+        await checkDateChange()
+        await setupMidnightAlarm()
+      })
+    })()
+  }
+})
+
+const checkDateChange = async () => {
+  const todayKey = getLocalDateKey()
+  const storedToday = await storage.get<DailyUsage>(TIME_TRACKING_TODAY_KEY)
+  
+  if (DEBUG_FORCE_RESET || !storedToday || storedToday.date !== todayKey) {
+    console.log(`[YDT] Resetting stats! (Force: ${DEBUG_FORCE_RESET}, Key Mismatch: ${storedToday?.date !== todayKey})`)
+    const freshUsage = touchUsage(todayKey)
+    await storage.set(TIME_TRACKING_TODAY_KEY, freshUsage)
+    return true
+  }
+  return false
+}
+
 const ensureInitialized = async () => {
   if (!initializePromise) {
     initializePromise = (async () => {
@@ -66,6 +118,8 @@ const ensureInitialized = async () => {
       )
 
       await loadSettings()
+      await checkDateChange()
+      await setupMidnightAlarm()
 
       storage.watch({
         settings: (chg) => {

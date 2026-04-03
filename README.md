@@ -1,53 +1,65 @@
 # YouDefineTube 📺
+### Take back control of your YouTube experience.
 
-A premium browser extension designed to help you regain control over your YouTube experience. **YouDefineTube** combines sleek, distraction-blocking features with professional time-tracking to combat binge-watching and improve focus.
+**YouDefineTube** is a premium browser extension designed to help you reclaim your focus and eliminate addictive distractions. By combining sleek, distraction-blocking features with professional time-tracking, it transforms YouTube from a source of endless scrolling into a tool for intentional learning.
 
-![Extension Preview](https://github.com/Purva0017/YouDefineTube/blob/main/screen.png)
+---
 
 ## ✨ Key Features
 
-- **🎯 Distraction Blocker**: Toggle individual components of the YouTube UI:
-  - Hide Shorts (Homepage & Sidebar)
-  - Remove End Screen video suggestions
-  - Disable Comments and Live Chat
-  - Hide Homepage Recommendations
-- **⏳ Smart Daily Limits**:
-  - Set specific daily time goals.
-  - **Friction-based alerts**: A persistent overlay prevents further browsing once limits are reached.
-  - "Give me 5 more minutes" option (limited to twice per day).
-- **📊 Usage Analytics**:
-  - **Segmented Progress Bar**: Visualizes time spent **Watching**, **Browsing**, and **Searching**.
-  - Accuracy maintained across restarts and multiple tabs.
+### 🎯 Distraction-Free Browsing
+Tailor your YouTube UI to match your focus goals. Toggle features on or off instantly:
+- **Hide Shorts**: Remove the addictive short-form video feed from your Homepage and Sidebar.
+- **Redirect to Subscriptions**: Stop landing on the algorithmic Homepage; go straight to the creators you trust.
+- **Clean Sidebar**: Hide suggested videos to stay focused on what you're currently watching.
+- **Minimalist UI**: Instantly hide Comments, End Screen suggestions, and Live Chat.
 
-## 🧠 Technical Challenges & Solutions
+### ⏳ Professional Time Management
+- **Smart Daily limits**: Set a daily time goal and get a persistent, friction-based overlay when you've reached it.
+- **"Just 5 More Minutes"**: Need a quick extension? We grant two 5-minute extensions per day for emergencies.
+- **Cross-Tab Synchronization**: Our "Heartbeat" technology ensures accurate time tracking even if you have 20 tabs open.
 
-*This section is what recruiters actually read to judge your skill level.*
+### 📊 Deep Usage Insights
+- **Segmented Analytics**: See exactly how much time you spend **Watching**, **Browsing**, and **Searching**.
+- **Visual Progress**: High-resolution, segmented progress bars keep your daily goals at the forefront of your experience.
 
-### Challenge: Accurate Time Tracking Across Tabs
-**Problem**: Traditional timers stop when a tab is hidden, but users often keep YouTube running in the background or have 10 tabs open at once.
-**Solution**: I implemented a "Heartbeat" system using `Plasmo Storage` and `Background Service Workers`. It syncs a global state every second, ensuring that if you have 5 YouTube tabs open, your daily limit only counts 1 second per second, not 5.
+### ⌨️ Power-User Features
+- **Instant Access**: Use `Ctrl+Shift+Y` (or `Cmd+Shift+Y` on Mac) to open the control dashboard from any tab.
+- **Modern UI**: A sleek, dark-mode-ready interface inspired by high-end mobile dashboard designs.
 
-### Challenge: Modern UI in a Restricted Environment
-**Problem**: Browser extension popups have strict sizing and styling limitations.
-**Solution**: I utilized a card-based design with **Vanilla CSS** and **React** to ensure a high-end "iOS-style" feel while keeping the bundle size small for fast loading.
+---
 
-## 🛠️ Tech Stack
+## 🔒 Privacy & Security
 
-- **Core**: [Plasmo Framework](https://docs.plasmo.com) (MV3)
-- **Frontend**: React, TypeScript, Tailwind/Vanilla CSS
-- **State**: Plasmo Storage (Cross-tab synchronization)
+**Your data stays with you.**
+- **Local-First**: All your usage statistics and settings are stored locally in your browser.
+- **No Tracking**: We do not collect, sell, or transmit any of your personal data or browsing history to external servers.
+- **Permissions**: We only require access to `youtube.com` to apply your custom settings.
 
-## 🚀 Installation (Internal/Evaluation)
+---
 
-1. Clone the repo: `git clone <repo-url>`
-2. Install: `pnpm install`
-3. Dev Mode: `pnpm dev`
-4. Load the `build/chrome-mv3-dev` folder into Chrome via `chrome://extensions`.
+## 🚀 Installation & Setup
 
-## 📜 License & Copyright
+1. **Download**: Install YouDefineTube from the [Chrome Web Store](https://chrome.google.com/webstore). *(Currently in Review)*
+2. **Setup**: Click the icon in your toolbar or press `Ctrl+Shift+Y` to open the dashboard.
+3. **Customize**: Toggle your preferred blocks and set your Daily Limit.
+4. **Focus**: Refresh any open YouTube tabs to see your new, distraction-free environment.
 
-**Proprietary – All Rights Reserved**
+---
 
-Copyright (c) 2026 Purva Patel.
+## 🛠️ Developers
 
-This source code is shared **exclusively for evaluation and recruitment purposes**. No part of this project may be copied, redistributed, or used for commercial purposes without explicit written permission from the author.
+Built with the **Plasmo Framework** (MV3), **React**, and **TypeScript**.
+
+### Local Development
+1. Clone the repository.
+2. Run `pnpm install` then `pnpm dev`.
+3. Load the `build/chrome-mv3-dev` folder as an "Unpacked Extension" in Chrome.
+
+---
+
+## 📜 Support & Legal
+
+- **Support**: For technical issues or feature requests, contact [purvaap17@gmail.com](mailto:purvaap17@gmail.com).
+- **Donate**: Support the ongoing development of this project via our [Dodo Payments link](https://app.dodopayments.com).
+- **License**: Copyright (c) 2026 Purva Patel. All Rights Reserved.

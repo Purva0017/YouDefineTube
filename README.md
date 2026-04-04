@@ -61,5 +61,4 @@ Built with the **Plasmo Framework** (MV3), **React**, and **TypeScript**.
 ## 📜 Support & Legal
 
 - **Support**: For technical issues or feature requests, contact [purvaap17@gmail.com](mailto:purvaap17@gmail.com).
-- **Donate**: Support the ongoing development of this project via our [Dodo Payments link](https://app.dodopayments.com).
 - **License**: Copyright (c) 2026 Purva Patel. All Rights Reserved.

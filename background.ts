@@ -9,7 +9,6 @@ import {
   createEmptyDailyUsage,
   getLocalDateKey,
   getNextLocalMidnight,
-  getNextCustomTime,
   TIME_TRACKING_HISTORY_KEY,
   TIME_TRACKING_REPORT,
   TIME_TRACKING_TODAY_KEY,
@@ -55,37 +54,19 @@ const loadSettings = async () => {
   }
 }
 
-// Configuration for reset time (Default: 00:00 midnight)
-const RESET_HOURS = 0
-const RESET_MINUTES = 0
-
-// Set this to true only for force-reset testing
-const DEBUG_FORCE_RESET = false
-
 const setupMidnightAlarm = async () => {
   const now = Date.now()
-  const resetTime = getNextCustomTime(now, RESET_HOURS, RESET_MINUTES)
+  const midnight = getNextLocalMidnight(now)
   
-  // Clear any existing alarms to avoid duplicates
   await chrome.alarms.clear("midnight-reset")
-  await chrome.alarms.create("midnight-reset", { when: resetTime })
-  
-  console.log(`[YDT] Alarm successfully scheduled for: ${new Date(resetTime).toLocaleString()} (DEBUG_FORCE_RESET is ${DEBUG_FORCE_RESET})`)
+  await chrome.alarms.create("midnight-reset", { when: midnight })
 }
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "midnight-reset") {
     void (async () => {
-      console.log(`[YDT] Reset alarm triggered at ${new Date().toLocaleTimeString()}!`)
       await enqueue(async () => {
         await ensureInitialized()
-        
-        const todayKey = getLocalDateKey()
-        if (DEBUG_FORCE_RESET) {
-          console.log(`[YDT] DEBUG: Clearing history for ${todayKey} to force 0m reset...`)
-          delete historyCache[todayKey]
-        }
-        
         await checkDateChange()
         await setupMidnightAlarm()
       })
@@ -97,8 +78,7 @@ const checkDateChange = async () => {
   const todayKey = getLocalDateKey()
   const storedToday = await storage.get<DailyUsage>(TIME_TRACKING_TODAY_KEY)
   
-  if (DEBUG_FORCE_RESET || !storedToday || storedToday.date !== todayKey) {
-    console.log(`[YDT] Resetting stats! (Force: ${DEBUG_FORCE_RESET}, Key Mismatch: ${storedToday?.date !== todayKey})`)
+  if (!storedToday || storedToday.date !== todayKey) {
     const freshUsage = touchUsage(todayKey)
     await storage.set(TIME_TRACKING_TODAY_KEY, freshUsage)
     return true
@@ -139,9 +119,6 @@ const ensureInitialized = async () => {
             // If limit duration changed, reset extensions for the day
             if (oldSettings?.dailyLimitMinutes !== newSettings?.dailyLimitMinutes) {
               if ((todayUsage.extensionsUsed || 0) > 0) {
-                console.log(
-                  `[YDT] Limit updated from ${oldSettings?.dailyLimitMinutes} to ${newSettings?.dailyLimitMinutes}, resetting extensions`
-                )
                 todayUsage.extensionsUsed = 0
                 todayUsage.updatedAt = Date.now()
                 historyCache[todayKey] = todayUsage
@@ -234,11 +211,8 @@ const maybeTriggerDailyLimitAlert = async () => {
   const todayKey = getLocalDateKey()
   const todayUsage = touchUsage(todayKey)
 
-  console.log(`[YDT] Check Limit: enabled=${settingsCache.dailyLimitEnabled}, limit=${settingsCache.dailyLimitMinutes}, used=${todayUsage.totalYoutubeMs}ms (${Math.floor(todayUsage.totalYoutubeMs / 60000)}m)`)
-
   if (!settingsCache.dailyLimitEnabled || settingsCache.dailyLimitMinutes <= 0) {
     if (todayUsage.dailyLimitReachedAt) {
-      console.log("[YDT] Limit disabled, clearing reached flag")
       todayUsage.dailyLimitReachedAt = null
       todayUsage.updatedAt = Date.now()
       historyCache[todayKey] = todayUsage
@@ -252,7 +226,6 @@ const maybeTriggerDailyLimitAlert = async () => {
 
   if (currentTotalMinutes < allowedLimitMinutes) {
     if (todayUsage.dailyLimitReachedAt) {
-      console.log(`[YDT] Usage below limit (${currentTotalMinutes}m < ${allowedLimitMinutes}m), clearing reached flag`)
       todayUsage.dailyLimitReachedAt = null
       todayUsage.updatedAt = Date.now()
       historyCache[todayKey] = todayUsage
@@ -262,11 +235,8 @@ const maybeTriggerDailyLimitAlert = async () => {
 
   // Already reached, nothing to do
   if (todayUsage.dailyLimitReachedAt) {
-    console.log(`[YDT] Limit already reached at ${new Date(todayUsage.dailyLimitReachedAt).toLocaleTimeString()}`)
     return
   }
-
-  console.log(`[YDT] TRIGGERING LIMIT REACHED: ${currentTotalMinutes}m >= ${allowedLimitMinutes}m`)
 
   todayUsage.dailyLimitReachedAt = Date.now()
   todayUsage.updatedAt = Date.now()

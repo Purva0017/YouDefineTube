@@ -8,6 +8,12 @@ export type Settings = {
   dailyLimitEnabled: boolean
   dailyLimitMinutes: number
   theme: "light" | "dark" | "system"
+  redirectHomeToSubscriptions: boolean
+  hidePeopleAlsoSearchFor: boolean
+  hidePeopleAlsoWatched: boolean
+  hideExploreMore: boolean
+  hideFromRelatedSearches: boolean
+  hideChannelsNewToYou: boolean
 }
 
 export const defaultSettings: Settings = {
@@ -19,5 +25,11 @@ export const defaultSettings: Settings = {
   hideSuggestedVideos: false,
   dailyLimitEnabled: false,
   dailyLimitMinutes: 60,
-  theme: "system"
+  theme: "system",
+  redirectHomeToSubscriptions: false,
+  hidePeopleAlsoSearchFor: false,
+  hidePeopleAlsoWatched: false,
+  hideExploreMore: false,
+  hideFromRelatedSearches: false,
+  hideChannelsNewToYou: false
 }

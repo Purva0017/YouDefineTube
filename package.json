@@ -1,9 +1,9 @@
 {
   "name": "you-define-tube",
-  "displayName": "You define tube",
-  "version": "0.0.1",
-  "description": "Youtube extension.",
-  "author": "Purva & Ram",
+  "displayName": "YouDefineTube",
+  "version": "1.1.0",
+  "description": "Redefine your YouTube experience. Block addictive distractions, set daily limits, and track your time for better focus.",
+  "author": "Purva",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
@@ -25,12 +25,10 @@
     "typescript": "5.3.3"
   },
   "manifest": {
-    "permissions": [
-      "notifications",
-      "alarms"
-    ],
+    "permissions": ["notifications", "alarms"],
     "host_permissions": [
-      "https://*/*"
+      "https://www.youtube.com/*",
+      "https://m.youtube.com/*"
     ]
   }
 }

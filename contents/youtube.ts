@@ -40,30 +40,41 @@ const buildCss = (s: Settings) => {
   const rules: string[] = []
 
   if (s.hideShorts) {
-    rules.push(
-      [
-        "ytd-reel-shelf-renderer",
-        "ytd-reel-video-renderer",
-        'ytd-guide-entry-renderer:has(a[href="/shorts"])',
-        'ytd-guide-entry-renderer:has(a[href^="/shorts"])',
-        'ytd-guide-entry-renderer:has(a[href*="/shorts"])',
-        'ytd-guide-entry-renderer:has([title="Shorts"])',
-        'ytd-guide-entry-renderer:has(yt-formatted-string[title="Shorts"])',
-        'ytd-guide-entry-renderer:has(yt-formatted-string[aria-label="Shorts"])',
-        'ytd-mini-guide-entry-renderer:has(a[href="/shorts"])',
-        'ytd-mini-guide-entry-renderer:has(a[href^="/shorts"])',
-        'ytd-mini-guide-entry-renderer:has(a[href*="/shorts"])',
-        'ytd-mini-guide-entry-renderer:has([title="Shorts"])',
-        'ytd-mini-guide-entry-renderer:has(yt-formatted-string[title="Shorts"])',
-        'ytd-mini-guide-entry-renderer:has(yt-formatted-string[aria-label="Shorts"])',
-        'tp-yt-paper-item:has(a[href="/shorts"])',
-        'tp-yt-paper-item:has(a[href^="/shorts"])',
-        'tp-yt-paper-item:has(a[href*="/shorts"])',
-        'a[href*="/shorts/"]',
-        'ytd-rich-section-renderer:has(a[href*="/shorts/"])',
-        "ytd-reel-item-renderer"
-      ].join(", ") + " { display: none !important; }"
-    )
+    const shortsSelectors = [
+      "ytd-reel-shelf-renderer",
+      "ytd-reel-video-renderer",
+      'ytd-guide-entry-renderer:has(a[href="/shorts"])',
+      'ytd-guide-entry-renderer:has(a[href^="/shorts"])',
+      'ytd-guide-entry-renderer:has(a[href*="/shorts"])',
+      'ytd-guide-entry-renderer:has([title="Shorts"])',
+      'ytd-guide-entry-renderer:has(yt-formatted-string[title="Shorts"])',
+      'ytd-guide-entry-renderer:has(yt-formatted-string[aria-label="Shorts"])',
+      'ytd-mini-guide-entry-renderer:has(a[href="/shorts"])',
+      'ytd-mini-guide-entry-renderer:has(a[href^="/shorts"])',
+      'ytd-mini-guide-entry-renderer:has(a[href*="/shorts"])',
+      'ytd-mini-guide-entry-renderer:has([title="Shorts"])',
+      'ytd-mini-guide-entry-renderer:has(yt-formatted-string[title="Shorts"])',
+      'ytd-mini-guide-entry-renderer:has(yt-formatted-string[aria-label="Shorts"])',
+      'tp-yt-paper-item:has(a[href="/shorts"])',
+      'tp-yt-paper-item:has(a[href^="/shorts"])',
+      'tp-yt-paper-item:has(a[href*="/shorts"])',
+      'a[href*="/shorts/"]',
+      "ytd-reel-item-renderer",
+      'ytd-rich-section-renderer:has(a[href*="/shorts/"])',
+      "ytm-shorts-lockup-view-model",
+      "ytm-shorts-lockup-view-model-v2",
+      "grid-shelf-view-model:has(a[href*='/shorts/'])",
+      "grid-shelf-view-model:has(ytm-shorts-lockup-view-model)",
+      "grid-shelf-view-model:has(ytm-shorts-lockup-view-model-v2)",
+      "ytd-video-renderer:has(a[href*='/shorts/'])",
+      "ytd-video-renderer:has(a[href*=\"/shorts/\"])",
+      "ytd-video-renderer:has(ytd-thumbnail-overlay-time-status-renderer[overlay-style='SHORTS'])",
+      "ytd-rich-item-renderer:has(a[href*='/shorts/'])",
+      "ytd-rich-item-renderer:has(ytd-thumbnail-overlay-time-status-renderer[overlay-style='SHORTS'])"
+    ]
+    shortsSelectors.forEach((sel) => {
+      rules.push(`${sel} { display: none !important; }`)
+    })
   }
 
   if (s.hideEndScreen) {
@@ -109,6 +120,36 @@ const buildCss = (s: Settings) => {
         "ytm-rich-grid-renderer",
         "ytm-item-section-renderer"
       ].join(", ") + " { display: none !important; }"
+    )
+  }
+
+  if (s.hidePeopleAlsoSearchFor) {
+    rules.push(
+      "ytd-horizontal-card-list-renderer:has(ytd-search-refinement-card-renderer) { display: none !important; }"
+    )
+  }
+  
+  if (s.hidePeopleAlsoWatched) {
+    rules.push(
+      "ytd-shelf-renderer[data-ydt-hide='people-also-watched'] { display: none !important; }"
+    )
+  }
+
+  if (s.hideExploreMore) {
+    rules.push(
+      "ytd-shelf-renderer[data-ydt-hide='explore-more'] { display: none !important; }"
+    )
+  }
+
+  if (s.hideFromRelatedSearches) {
+    rules.push(
+      "ytd-shelf-renderer[data-ydt-hide='from-related-searches'] { display: none !important; }"
+    )
+  }
+
+  if (s.hideChannelsNewToYou) {
+    rules.push(
+      "ytd-shelf-renderer[data-ydt-hide='channels-new-to-you'] { display: none !important; }"
     )
   }
 
@@ -463,6 +504,40 @@ const ensureHomepageObserver = () => {
   })
 }
 
+const updateSearchRefinements = () => {
+  if (!settings.hidePeopleAlsoWatched && !settings.hideExploreMore && !settings.hideFromRelatedSearches && !settings.hideChannelsNewToYou) return
+  if (getYoutubePageType() !== "search") return
+
+  const shelves = document.querySelectorAll('ytd-shelf-renderer:not([data-ydt-hide])')
+  shelves.forEach((shelf) => {
+    const titleSpan = shelf.querySelector('span#title')
+    const titleText = titleSpan?.textContent?.trim().toLowerCase()
+
+    if (settings.hidePeopleAlsoWatched && titleText === "people also watched") {
+      shelf.setAttribute('data-ydt-hide', 'people-also-watched')
+    } else if (settings.hideExploreMore && titleText === "explore more") {
+      shelf.setAttribute('data-ydt-hide', 'explore-more')
+    } else if (settings.hideFromRelatedSearches && titleText === "from related searches") {
+      shelf.setAttribute('data-ydt-hide', 'from-related-searches')
+    } else if (settings.hideChannelsNewToYou && titleText === "channels new to you") {
+      shelf.setAttribute('data-ydt-hide', 'channels-new-to-you')
+    }
+  })
+}
+
+const ensureSearchObserver = () => {
+  const observer = new MutationObserver(() => {
+    if (getYoutubePageType() === "search") {
+      updateSearchRefinements()
+    }
+  })
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  })
+}
+
 const loadSettings = async () => {
   settings = {
     ...defaultSettings,
@@ -486,12 +561,14 @@ const watchSettings = () => {
       settings = next
       applyCss()
       updateHomepageMessage()
+      updateSearchRefinements()
       if (!prev.hideShorts && next.hideShorts) {
         handleShortsRoute()
       }
       if (prev.hideShorts && !next.hideShorts) {
         handleRevertToShortsIfApplicable()
       }
+      handleHomeRedirect()
 
       // Re-evaluate alert if settings changed (e.g. limit disabled/increased)
       void storage.get<DailyUsage>(TIME_TRACKING_TODAY_KEY).then((usage) => {
@@ -521,6 +598,7 @@ const tickUrl = () => {
     lastUrl = location.href
     applyCss()
     updateHomepageMessage()
+    handleHomeRedirect()
     handleShortsRoute()
     handleWatchPauseFromFlag()
     handleShortsPauseFromFlag()
@@ -542,8 +620,12 @@ const tickUrl = () => {
   await loadSettings()
   watchSettings()
   ensureHomepageObserver()
+  ensureSearchObserver()
   ensureTrackedVideoListeners()
-  document.addEventListener("yt-navigate-finish", queueHomepageMessageUpdate)
+  document.addEventListener("yt-navigate-finish", () => {
+    updateHomepageMessage()
+    updateSearchRefinements()
+  })
   document.addEventListener("yt-navigate-finish", queueTimeTrackingReport)
   document.addEventListener("visibilitychange", queueTimeTrackingReport)
   window.addEventListener("focus", queueTimeTrackingReport)
@@ -558,12 +640,21 @@ const tickUrl = () => {
     sendTimeTrackingReport()
   }, TIME_TRACKING_HEARTBEAT_MS)
   updateHomepageMessage()
+  updateSearchRefinements()
   sendTimeTrackingReport()
   handleShortsRoute()
   handleWatchPauseFromFlag()
   handleShortsPauseFromFlag()
   tickUrl()
+  handleHomeRedirect()
 })()
+
+function handleHomeRedirect() {
+  if (!settings.hideHomepageRecommendations || !settings.redirectHomeToSubscriptions) return
+  if (window.location.pathname === "/") {
+    window.location.replace("/feed/subscriptions")
+  }
+}
 
 function handleShortsRoute() {
   if (!settings.hideShorts) return

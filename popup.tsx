@@ -322,9 +322,9 @@ function IndexPopup() {
               { key: "hideShorts", label: "Hide Shorts", icon: <Icons.Shorts /> },
               { key: "hideHomepageRecommendations", label: "Hide Homepage Recommendations", icon: <Icons.Home /> },
               { key: "hideSuggestedVideos", label: "Hide Video Sidebar Recommendations", icon: <Icons.Sidebar /> },
-              { key: "hideEndScreen", label: "Hide End Screen", icon: <Icons.EndScreen /> },
               { key: "hideComments", label: "Hide Comments", icon: <Icons.Comments /> },
-              { key: "hideLiveChat", label: "Hide Live Chat", icon: <Icons.Chat /> }
+              { key: "hideEndScreen", label: "Hide End Screen", icon: <Icons.EndScreen /> },
+              { key: "hideLiveChat", label: "Hide Live Chat", icon: <Icons.Chat /> },
             ].map((item) => (
               <div key={item.key}>
                 <div className="setting-row">
@@ -1042,7 +1042,7 @@ function IndexPopup() {
               background: colors.bg
             }}>
             <NavButton
-              label="Donate"
+              label="Support the Dev"
               onClick={() => setActiveView("donate")}
               isActive={activeView === "donate"}
             />

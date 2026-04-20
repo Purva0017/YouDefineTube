@@ -1,0 +1,35 @@
+YouDefineTube is a lightweight YouTube distraction blocker that puts you back in control. It removes the features YouTube uses to keep you scrolling — Shorts, homepage recommendations, sidebar suggestions, and search clutter — so you only see what you actually came for. Set a daily YouTube time limit, track your usage, and browse distraction-free. No data leaves your browser. Ever.
+
+HOW TO GET STARTED
+1. Install the YouDefineTube extension.
+2. Pin it to your toolbar for quick access.
+3. Toggle the distractions you want to block.
+Changes take effect immediately — no page refresh needed.
+
+BLOCK YOUTUBE DISTRACTIONS
+• Hide YouTube Shorts from your feed, sidebar, and navigation.
+• Hide homepage recommendations — stop the endless scroll before it starts. Optionally redirect to your Subscriptions feed instead.
+• Block video sidebar suggestions ("Up next") so you watch what you chose, not what the algorithm chose.
+• Hide end screens that push you toward "just one more video."
+• Hide comments and live chat to stay focused on the content.
+
+DECLUTTER YOUTUBE SEARCH RESULTS
+YouTube fills your search results with content you didn't ask for. Remove them:
+• "People also watched"
+• "People also search for"
+• "From related searches"
+• "Channels new to you"
+• "Explore more"
+Toggle each one individually — keep what's useful, remove what's not.
+
+SET A DAILY YOUTUBE TIME LIMIT
+• Set a custom daily limit in hours and minutes.
+• Get notified when you hit your limit — both as a browser notification and an on-page alert.
+• Track how much time you spend watching, browsing, and searching YouTube with a detailed breakdown.
+• Request up to 2 five-minute extensions per day if you need a little more time.
+
+DARK & LIGHT MODE
+• The extension respects your preference. Switch between dark mode and light mode with one click.
+
+YOUR PRIVACY
+YouDefineTube does not collect, store, or transmit any personal data. All settings and usage data stay in your browser's local storage. No analytics, no tracking, no external servers.

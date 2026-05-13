@@ -5,8 +5,8 @@ import razorpayQrUrl from "url:~/assets/razorpay-qr.png"
 import { useStorage } from "@plasmohq/storage/hook"
 
 import { defaultSettings, type Settings } from "~/lib/settings"
+import { STORAGE_KEYS } from "~/lib/constants"
 import {
-  TIME_TRACKING_TODAY_KEY,
   createEmptyDailyUsage,
   getLocalDateKey,
   type DailyUsage
@@ -208,7 +208,7 @@ function CustomToggle({
 function IndexPopup() {
   const [settings, setSettings] = useStorage<Settings>("settings", defaultSettings)
   const [todayUsage, setTodayUsage] = useStorage<DailyUsage>(
-    TIME_TRACKING_TODAY_KEY,
+    STORAGE_KEYS.TIME_TRACKING_TODAY,
     createEmptyDailyUsage(getLocalDateKey())
   )
   const [activeView, setActiveView] = useState<"main" | "support" | "donate">("main")
@@ -321,7 +321,7 @@ function IndexPopup() {
             {[
               { key: "hideShorts", label: "Hide Shorts", icon: <Icons.Shorts /> },
               { key: "hideHomepageRecommendations", label: "Hide Homepage Recommendations", icon: <Icons.Home /> },
-              { key: "hideSuggestedVideos", label: "Hide Video Sidebar Recommendations", icon: <Icons.Sidebar /> },
+              { key: "hideVideoSidebarRecommendations", label: "Hide Video Sidebar Recommendations", icon: <Icons.Sidebar /> },
               { key: "hideComments", label: "Hide Comments", icon: <Icons.Comments /> },
               { key: "hideEndScreen", label: "Hide End Screen", icon: <Icons.EndScreen /> },
               { key: "hideLiveChat", label: "Hide Live Chat", icon: <Icons.Chat /> },
@@ -348,8 +348,8 @@ function IndexPopup() {
                       Redirect to Subscriptions
                     </div>
                     <CustomToggle
-                      checked={!!settings?.redirectHomeToSubscriptions}
-                      onChange={() => onToggle("redirectHomeToSubscriptions")}
+                      checked={!!settings?.redirectToSubscriptions}
+                      onChange={() => onToggle("redirectToSubscriptions")}
                       isDark={isDark}
                       size="small"
                     />
@@ -419,19 +419,19 @@ function IndexPopup() {
 
         <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
           <div
-            onClick={() => onToggle("dailyLimitEnabled")}
+            onClick={() => onToggle("enableDailyLimitAlert")}
             style={{
               width: 18,
               height: 18,
               borderRadius: 4,
-              background: settings?.dailyLimitEnabled ? "#cc0000" : colors.inputBg,
-              border: `2px solid ${settings?.dailyLimitEnabled ? "#cc0000" : colors.inputBorder}`,
+              background: settings?.enableDailyLimitAlert ? "#cc0000" : colors.inputBg,
+              border: `2px solid ${settings?.enableDailyLimitAlert ? "#cc0000" : colors.inputBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               transition: "all 0.2s"
             }}>
-            {settings?.dailyLimitEnabled && (
+            {settings?.enableDailyLimitAlert && (
               <svg
                 width="12"
                 height="12"

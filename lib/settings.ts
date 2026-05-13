@@ -1,35 +1,36 @@
 export type Settings = {
   hideShorts: boolean
-  hideEndScreen: boolean
-  hideComments: boolean
-  hideLiveChat: boolean
   hideHomepageRecommendations: boolean
-  hideSuggestedVideos: boolean
-  dailyLimitEnabled: boolean
-  dailyLimitMinutes: number
-  theme: "light" | "dark" | "system"
-  redirectHomeToSubscriptions: boolean
-  hidePeopleAlsoSearchFor: boolean
+  redirectToSubscriptions: boolean
+  hideVideoSidebarRecommendations: boolean
+  hideComments: boolean
+  hideEndScreen: boolean
+  hideLiveChat: boolean
   hidePeopleAlsoWatched: boolean
-  hideExploreMore: boolean
+  hidePeopleAlsoSearchFor: boolean
   hideFromRelatedSearches: boolean
   hideChannelsNewToYou: boolean
+  hideExploreMore: boolean
+  enableDailyLimitAlert: boolean
+  dailyLimitMinutes: number
+  theme: "light" | "dark" | "system"
 }
 
 export const defaultSettings: Settings = {
   hideShorts: true,
-  hideEndScreen: true,
-  hideComments: false,
-  hideLiveChat: false,
   hideHomepageRecommendations: false,
-  hideSuggestedVideos: false,
-  dailyLimitEnabled: false,
-  dailyLimitMinutes: 60,
-  theme: "system",
-  redirectHomeToSubscriptions: false,
-  hidePeopleAlsoSearchFor: false,
+  redirectToSubscriptions: false,
+  hideVideoSidebarRecommendations: false,
+  hideComments: false,
+  hideEndScreen: true,
+  hideLiveChat: false,
   hidePeopleAlsoWatched: false,
-  hideExploreMore: false,
+  hidePeopleAlsoSearchFor: false,
   hideFromRelatedSearches: false,
-  hideChannelsNewToYou: false
+  hideChannelsNewToYou: false,
+  hideExploreMore: false,
+  enableDailyLimitAlert: false,
+  dailyLimitMinutes: 60,
+  theme: "system"
 }
+

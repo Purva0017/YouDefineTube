@@ -1,6 +1,6 @@
 {
   "name": "you-define-tube",
-  "displayName": "YouDefineTube: Block YouTube distractions, hide shorts, set time limits",
+  "displayName": "YouDefineTube: Focus & Limit YouTube",
   "version": "1.1.0",
   "description": "Redefine your YouTube experience. Block addictive distractions, set daily limits, and track your time for better focus.",
   "author": "Purva",
@@ -21,14 +21,32 @@
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
+    "baseline-browser-mapping": "^2.10.29",
     "prettier": "3.2.4",
     "typescript": "5.3.3"
   },
   "manifest": {
-    "permissions": ["notifications", "alarms"],
+    "permissions": [
+      "notifications",
+      "alarms",
+      "storage"
+    ],
+    "developer": {
+      "name": "Purva",
+      "url": "https://github.com/Purva0017/YouDefineTube"
+    },
     "host_permissions": [
       "https://www.youtube.com/*",
       "https://m.youtube.com/*"
-    ]
+    ],
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "you-define-tube@purva.patel",
+        "strict_min_version": "109.0",
+        "data_collection_permissions": {
+          "required": ["none"]
+        }
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import iconUrl from "url:~/assets/icon.png"
 import paypalQrUrl from "url:~/assets/paypal-qr.png"
 import razorpayQrUrl from "url:~/assets/razorpay-qr.png"
@@ -161,6 +161,17 @@ const Icons = {
     >
       <path d="M5 3l6 5-6 5z" />
     </svg>
+  ),
+  Plus: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  ),
+  Minus: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
   )
 }
 
@@ -218,6 +229,21 @@ function IndexPopup() {
 
   const [isSearchOpen, setIsSearchOpen] = useState(true)
   const [isGeneralOpen, setIsGeneralOpen] = useState(true)
+
+  const intervalRef = useRef<any>(null);
+  const timeoutRef = useRef<any>(null);
+
+  const startRepeat = (action: () => void) => {
+    action();
+    timeoutRef.current = setTimeout(() => {
+      intervalRef.current = setInterval(action, 100);
+    }, 400);
+  };
+
+  const stopRepeat = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
 
   // Theme Logic
   const [systemDark, setSystemDark] = useState(false)
@@ -451,23 +477,47 @@ function IndexPopup() {
         </label>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <style>{`
+            input[type="number"]::-webkit-inner-spin-button,
+            input[type="number"]::-webkit-outer-spin-button {
+              -webkit-appearance: none;
+              margin: 0;
+            }
+            input[type="number"] {
+              -moz-appearance: textfield;
+            }
+          `}</style>
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 2,
               background: colors.inputBg,
               border: `1px solid ${colors.inputBorder}`,
               borderRadius: 10,
-              padding: "4px 10px",
+              padding: "4px 4px",
               flex: 1
             }}>
+            <button
+              onMouseDown={() => startRepeat(() => setInputLimitHours(prev => Math.max(0, (Number(prev) || 0) - 1)))}
+              onMouseUp={stopRepeat}
+              onMouseLeave={stopRepeat}
+              onTouchStart={() => startRepeat(() => setInputLimitHours(prev => Math.max(0, (Number(prev) || 0) - 1)))}
+              onTouchEnd={stopRepeat}
+              style={{ background: "transparent", border: "none", color: colors.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px", opacity: 0.6 }}
+            ><Icons.Minus /></button>
             <input
               type="number"
               value={inputLimitHours}
-              onChange={(e) => setInputLimitHours(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "") { setInputLimitHours(""); return; }
+                const num = parseInt(val, 10);
+                if (!isNaN(num)) setInputLimitHours(Math.min(23, Math.max(0, num)));
+              }}
               style={{
                 width: "100%",
+                minWidth: 28,
                 border: "none",
                 outline: "none",
                 fontSize: 15,
@@ -477,25 +527,47 @@ function IndexPopup() {
                 color: colors.text
               }}
             />
-            <span style={{ fontSize: 13, color: colors.label }}>h</span>
+            <span style={{ fontSize: 13, color: colors.label, marginRight: 2 }}>h</span>
+            <button
+              onMouseDown={() => startRepeat(() => setInputLimitHours(prev => Math.min(23, (Number(prev) || 0) + 1)))}
+              onMouseUp={stopRepeat}
+              onMouseLeave={stopRepeat}
+              onTouchStart={() => startRepeat(() => setInputLimitHours(prev => Math.min(23, (Number(prev) || 0) + 1)))}
+              onTouchEnd={stopRepeat}
+              style={{ background: "transparent", border: "none", color: colors.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px", opacity: 0.6 }}
+            ><Icons.Plus /></button>
           </div>
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 2,
               background: colors.inputBg,
               border: `1px solid ${colors.inputBorder}`,
               borderRadius: 10,
-              padding: "4px 10px",
+              padding: "4px 4px",
               flex: 1
             }}>
+            <button
+              onMouseDown={() => startRepeat(() => setInputLimitMinutes(prev => Math.max(0, (Number(prev) || 0) - 1)))}
+              onMouseUp={stopRepeat}
+              onMouseLeave={stopRepeat}
+              onTouchStart={() => startRepeat(() => setInputLimitMinutes(prev => Math.max(0, (Number(prev) || 0) - 1)))}
+              onTouchEnd={stopRepeat}
+              style={{ background: "transparent", border: "none", color: colors.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px", opacity: 0.6 }}
+            ><Icons.Minus /></button>
             <input
               type="number"
               value={inputLimitMinutes}
-              onChange={(e) => setInputLimitMinutes(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "") { setInputLimitMinutes(""); return; }
+                const num = parseInt(val, 10);
+                if (!isNaN(num)) setInputLimitMinutes(Math.min(59, Math.max(0, num)));
+              }}
               style={{
                 width: "100%",
+                minWidth: 28,
                 border: "none",
                 outline: "none",
                 fontSize: 15,
@@ -505,7 +577,15 @@ function IndexPopup() {
                 color: colors.text
               }}
             />
-            <span style={{ fontSize: 13, color: colors.label }}>m</span>
+            <span style={{ fontSize: 13, color: colors.label, marginRight: 2 }}>m</span>
+            <button
+              onMouseDown={() => startRepeat(() => setInputLimitMinutes(prev => Math.min(59, (Number(prev) || 0) + 1)))}
+              onMouseUp={stopRepeat}
+              onMouseLeave={stopRepeat}
+              onTouchStart={() => startRepeat(() => setInputLimitMinutes(prev => Math.min(59, (Number(prev) || 0) + 1)))}
+              onTouchEnd={stopRepeat}
+              style={{ background: "transparent", border: "none", color: colors.text, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px", opacity: 0.6 }}
+            ><Icons.Plus /></button>
           </div>
           <button
             onClick={onUpdateLimit}

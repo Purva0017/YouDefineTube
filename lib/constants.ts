@@ -50,7 +50,12 @@ export const SELECTORS = {
     ".ytp-endscreen-previous",
     ".ytp-ce-element",
     ".ytp-ce-video",
-    ".ytp-ce-element-show"
+    ".ytp-ce-element-show",
+    ".ytp-fullscreen-grid-main-content",
+    ".ytp-modern-videowall",
+    ".ytp-videowall-still",
+    ".ytp-modern-videowall-still",
+    ".html5-endscreen"
   ],
   COMMENTS: ["#comments", "ytd-comments"],
   LIVE_CHAT: ["#chat", "#chat-container", "ytd-live-chat-frame"],

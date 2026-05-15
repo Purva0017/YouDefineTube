@@ -14,6 +14,7 @@ export type Settings = {
   enableDailyLimitAlert: boolean
   dailyLimitMinutes: number
   theme: "light" | "dark" | "system"
+  isExtensionEnabled: boolean
 }
 
 export const defaultSettings: Settings = {
@@ -31,6 +32,7 @@ export const defaultSettings: Settings = {
   hideExploreMore: false,
   enableDailyLimitAlert: false,
   dailyLimitMinutes: 60,
-  theme: "system"
+  theme: "system",
+  isExtensionEnabled: true
 }
 

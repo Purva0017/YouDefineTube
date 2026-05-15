@@ -172,6 +172,12 @@ const Icons = {
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
+  ),
+  Power: ({ isOn, size = 20, color }: { isOn?: boolean, size?: number, color?: string }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || (isOn ? "currentColor" : "#ef4444")} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+      <line x1="12" y1="2" x2="12" y2="12"></line>
+    </svg>
   )
 }
 
@@ -319,6 +325,54 @@ function IndexPopup() {
 
   const [isHoverTheme, setIsHoverTheme] = useState(false)
 
+  const renderPowerOffState = () => (
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: 280,
+      padding: "0 32px",
+      textAlign: "center"
+    }}>
+      <button
+        onClick={() => onToggle("isExtensionEnabled")}
+        style={{
+          width: 120,
+          height: 120,
+          borderRadius: "50%",
+          background: "#ef4444",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 10px 25px rgba(239, 68, 68, 0.4)",
+          transition: "transform 0.1s, box-shadow 0.1s",
+          marginBottom: 32
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.transform = "scale(0.95)"
+          e.currentTarget.style.boxShadow = "0 5px 15px rgba(239, 68, 68, 0.3)"
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.transform = "scale(1)"
+          e.currentTarget.style.boxShadow = "0 10px 25px rgba(239, 68, 68, 0.4)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)"
+          e.currentTarget.style.boxShadow = "0 10px 25px rgba(239, 68, 68, 0.4)"
+        }}
+      >
+        <Icons.Power isOn={true} size={64} color="white" />
+      </button>
+      <h2 style={{ margin: "0 0 12px 0", fontSize: 24, fontWeight: 800 }}>Extension is Off</h2>
+      <p style={{ margin: 0, fontSize: 15, color: colors.subtext, lineHeight: 1.5 }}>
+        YouDefineTube is currently sleeping. YouTube is running with its default settings. Click the power button to wake it up.
+      </p>
+    </div>
+  )
+
   const renderMainDashboard = () => (
     <>
       {/* Settings List */}
@@ -439,7 +493,8 @@ function IndexPopup() {
           display: "flex",
           flexDirection: "column",
           gap: 10,
-          border: `1px solid ${colors.border}`
+          border: `1px solid ${colors.border}`,
+          flexShrink: 0
         }}>
         <div style={{ fontSize: 16, fontWeight: 700 }}>Daily Limit</div>
 
@@ -605,8 +660,10 @@ function IndexPopup() {
           </button>
         </div>
       </div>
+    </>
+  )
 
-      {/* Today on YouTube Card */}
+  const renderTimerCard = () => (
       <div
         style={{
           background: colors.cardBg,
@@ -617,7 +674,8 @@ function IndexPopup() {
           gap: 10,
           border: `1px solid ${colors.border}`,
           position: "relative",
-          overflow: "hidden"
+          overflow: "hidden",
+          flexShrink: 0
         }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 16, fontWeight: 700 }}>Today on YouTube</div>
@@ -740,7 +798,6 @@ function IndexPopup() {
           Extensions used today: {todayUsage?.extensionsUsed || 0} / 2
         </div>
       </div>
-    </>
   )
 
   const renderSupportView = () => (
@@ -1078,27 +1135,46 @@ function IndexPopup() {
             </button>
           )}
 
-          <button
-            onClick={() =>
-              setSettings({ ...(settings || defaultSettings), theme: isDark ? "light" : "dark" })
-            }
-            onMouseEnter={() => setIsHoverTheme(true)}
-            onMouseLeave={() => setIsHoverTheme(false)}
-            style={{
-              background: isHoverTheme ? colors.cardBg : "none",
-              border: "none",
-              padding: 6,
-              borderRadius: 8,
-              cursor: "pointer",
-              color: colors.text,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.2s"
-            }}
-            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}>
-            {isDark ? <Icons.Sun /> : <Icons.Moon />}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={() =>
+                setSettings({ ...(settings || defaultSettings), theme: isDark ? "light" : "dark" })
+              }
+              onMouseEnter={() => setIsHoverTheme(true)}
+              onMouseLeave={() => setIsHoverTheme(false)}
+              style={{
+                background: isHoverTheme ? colors.cardBg : "none",
+                border: "none",
+                padding: 6,
+                borderRadius: 8,
+                cursor: "pointer",
+                color: colors.text,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background 0.2s"
+              }}
+              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+              {isDark ? <Icons.Sun /> : <Icons.Moon />}
+            </button>
+            <button
+              onClick={() => onToggle("isExtensionEnabled")}
+              style={{
+                background: settings?.isExtensionEnabled ? "transparent" : "rgba(239, 68, 68, 0.1)",
+                border: "none",
+                padding: 6,
+                borderRadius: 8,
+                cursor: "pointer",
+                color: settings?.isExtensionEnabled ? colors.text : "#ef4444",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s"
+              }}
+              title={settings?.isExtensionEnabled ? "Turn Off YouDefineTube" : "Turn On YouDefineTube"}>
+              <Icons.Power isOn={settings?.isExtensionEnabled} />
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}
@@ -1106,9 +1182,13 @@ function IndexPopup() {
           style={{
             flex: 1,
             padding: "8px 10px 20px",
-            overflowY: "auto"
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16
           }}>
-          {activeView === "main" && renderMainDashboard()}
+          {activeView === "main" && (settings?.isExtensionEnabled === false ? renderPowerOffState() : renderMainDashboard())}
+          {activeView === "main" && renderTimerCard()}
           {activeView === "support" && renderSupportView()}
           {activeView === "donate" && renderDonateView()}
         </div>

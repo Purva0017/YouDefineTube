@@ -3,6 +3,7 @@ import { TIMERS } from "~/lib/constants"
 
 export class NavigationManager {
   public handleRedirections(settings: Settings): void {
+    if (!settings.isExtensionEnabled) return
     this.handleHomeRedirect(settings)
     this.handleShortsRoute(settings)
     this.handleWatchPauseFromFlag(settings)

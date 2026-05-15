@@ -119,6 +119,11 @@ export class OverlayManager {
   }
 
   public updateHomepageMessage(settings: Settings): void {
+    if (!settings.isExtensionEnabled) {
+      this.removeHomepageMessage()
+      return
+    }
+
     if (settings.hideHomepageRecommendations && window.location.pathname === "/") {
       this.showHomepageMessage()
     } else {

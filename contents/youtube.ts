@@ -40,7 +40,7 @@ const loadSettings = async () => {
   }
   
   const todayUsage = await storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
-  if (todayUsage?.dailyLimitReachedAt && settings.enableDailyLimitAlert && document.body) {
+  if (todayUsage?.dailyLimitReachedAt && settings.enableDailyLimitAlert && settings.isExtensionEnabled && document.body) {
     overlayManager.showDailyLimitAlert(settings.dailyLimitMinutes, todayUsage.extensionsUsed || 0)
   }
 }
@@ -58,16 +58,19 @@ const watchStorage = () => {
         searchRefiner.update(settings)
       }
       
-      if (!prev.hideShorts && next.hideShorts) {
+      const prevHideShorts = prev.isExtensionEnabled && prev.hideShorts
+      const nextHideShorts = next.isExtensionEnabled && next.hideShorts
+
+      if (!prevHideShorts && nextHideShorts) {
         navigationManager.handleRedirections(settings)
       }
-      if (prev.hideShorts && !next.hideShorts) {
+      if (prevHideShorts && !nextHideShorts) {
         navigationManager.handleRevertToShortsIfApplicable()
       }
       navigationManager.handleRedirections(settings)
 
       void storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY).then((usage) => {
-        if (!usage?.dailyLimitReachedAt || !settings.enableDailyLimitAlert) {
+        if (!usage?.dailyLimitReachedAt || !settings.enableDailyLimitAlert || !settings.isExtensionEnabled) {
           overlayManager.removeDailyLimitAlert()
         } else if (document.body) {
           overlayManager.showDailyLimitAlert(settings.dailyLimitMinutes, usage.extensionsUsed || 0)
@@ -76,7 +79,7 @@ const watchStorage = () => {
     },
     [STORAGE_KEYS.TIME_TRACKING_TODAY]: (chg) => {
       const todayUsage = chg?.newValue as DailyUsage | undefined
-      if (todayUsage?.dailyLimitReachedAt && settings.enableDailyLimitAlert && document.body) {
+      if (todayUsage?.dailyLimitReachedAt && settings.enableDailyLimitAlert && settings.isExtensionEnabled && document.body) {
         overlayManager.showDailyLimitAlert(settings.dailyLimitMinutes, todayUsage.extensionsUsed || 0)
       } else {
         overlayManager.removeDailyLimitAlert()
@@ -102,7 +105,7 @@ const initializeContentScript = async () => {
     })
 
     chrome.runtime.onMessage.addListener((message) => {
-      if (message?.type === MESSAGES.DAILY_LIMIT_REACHED) {
+      if (message?.type === MESSAGES.DAILY_LIMIT_REACHED && settings.isExtensionEnabled) {
         overlayManager.showDailyLimitAlert(message.payload.limitMinutes, message.payload.extensionsUsed || 0)
       }
     })

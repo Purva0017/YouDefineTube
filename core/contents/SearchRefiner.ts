@@ -2,6 +2,7 @@ import type { Settings } from "~/lib/settings"
 
 export class SearchRefiner {
   public update(settings: Settings): void {
+    if (!settings.isExtensionEnabled) return
     if (!settings.hidePeopleAlsoWatched && !settings.hideExploreMore && !settings.hideFromRelatedSearches && !settings.hideChannelsNewToYou) return
     if (!window.location.pathname.startsWith("/results")) return
 

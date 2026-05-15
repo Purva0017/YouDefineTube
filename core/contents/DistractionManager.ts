@@ -7,6 +7,11 @@ export class DistractionManager {
   public apply(settings: Settings): void {
     const rules: string[] = []
 
+    if (!settings.isExtensionEnabled) {
+      this.ensureStyle().textContent = ""
+      return
+    }
+
     if (settings.hideShorts) {
       rules.push(...SELECTORS.SHORTS.map(sel => `${sel} { display: none !important; }`))
     }

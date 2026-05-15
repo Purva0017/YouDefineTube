@@ -57,6 +57,10 @@ export const SELECTORS = {
     ".ytp-modern-videowall-still",
     ".html5-endscreen"
   ],
+  PLAYABLES: [
+    "ytd-rich-section-renderer:has(a[href^='/playables'])",
+    "ytd-rich-section-renderer:has(a[href*='/playables'])"
+  ],
   COMMENTS: ["#comments", "ytd-comments"],
   LIVE_CHAT: ["#chat", "#chat-container", "ytd-live-chat-frame"],
   SUGGESTED_VIDEOS: [

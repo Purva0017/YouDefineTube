@@ -178,6 +178,15 @@ const Icons = {
       <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
       <line x1="12" y1="2" x2="12" y2="12"></line>
     </svg>
+  ),
+  Gamepad: () => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="6" y1="12" x2="10" y2="12"></line>
+      <line x1="8" y1="10" x2="8" y2="14"></line>
+      <line x1="15" y1="13" x2="15.01" y2="13"></line>
+      <line x1="18" y1="11" x2="18.01" y2="11"></line>
+      <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+    </svg>
   )
 }
 
@@ -404,6 +413,7 @@ function IndexPopup() {
               { key: "hideVideoSidebarRecommendations", label: "Hide Video Sidebar Recommendations", icon: <Icons.Sidebar /> },
               { key: "hideComments", label: "Hide Comments", icon: <Icons.Comments /> },
               { key: "hideEndScreen", label: "Hide End Screen", icon: <Icons.EndScreen /> },
+              { key: "hidePlayables", label: "Hide Playables", icon: <Icons.Gamepad /> },
               { key: "hideLiveChat", label: "Hide Live Chat", icon: <Icons.Chat /> },
             ].map((item) => (
               <div key={item.key}>
@@ -1169,7 +1179,8 @@ function IndexPopup() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                transition: "all 0.2s"
+                transition: "all 0.2s",
+                transform: "translateY(-0.5px)"
               }}
               title={settings?.isExtensionEnabled ? "Turn Off YouDefineTube" : "Turn On YouDefineTube"}>
               <Icons.Power isOn={settings?.isExtensionEnabled} />

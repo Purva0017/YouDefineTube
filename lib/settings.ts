@@ -6,6 +6,7 @@ export type Settings = {
   hideComments: boolean
   hideEndScreen: boolean
   hideLiveChat: boolean
+  hidePlayables: boolean
   hidePeopleAlsoWatched: boolean
   hidePeopleAlsoSearchFor: boolean
   hideFromRelatedSearches: boolean
@@ -25,6 +26,7 @@ export const defaultSettings: Settings = {
   hideComments: false,
   hideEndScreen: true,
   hideLiveChat: false,
+  hidePlayables: false,
   hidePeopleAlsoWatched: false,
   hidePeopleAlsoSearchFor: false,
   hideFromRelatedSearches: false,

@@ -28,6 +28,10 @@ export class DistractionManager {
       rules.push(`${SELECTORS.LIVE_CHAT.join(", ")} { display: none !important; }`)
     }
 
+    if (settings.hidePlayables) {
+      rules.push(`${SELECTORS.PLAYABLES.join(", ")} { display: none !important; }`)
+    }
+
     if (settings.hideVideoSidebarRecommendations) {
       rules.push(`${SELECTORS.SUGGESTED_VIDEOS.join(", ")} { display: none !important; }`)
     }

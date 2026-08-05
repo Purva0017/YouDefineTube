@@ -24,7 +24,7 @@ export class TimeTrackingService {
   private writeQueue = Promise.resolve()
   private settingsService = SettingsService.getInstance()
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): TimeTrackingService {
     if (!TimeTrackingService.instance) {
@@ -35,7 +35,7 @@ export class TimeTrackingService {
 
   public async initialize(): Promise<void> {
     this.historyCache = (await this.storage.get<UsageHistory>(STORAGE_KEYS.TIME_TRACKING_HISTORY)) || {}
-    
+
     // Fallback for chrome.storage.session (needed for some Firefox versions)
     const storageArea = chrome.storage.session || chrome.storage.local
     const sessionData = (await storageArea.get(STORAGE_KEYS.LIVE_SESSIONS))[STORAGE_KEYS.LIVE_SESSIONS] || {}
@@ -70,7 +70,7 @@ export class TimeTrackingService {
   public async checkDateChange(): Promise<boolean> {
     const todayKey = getLocalDateKey()
     const storedToday = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
-    
+
     if (!storedToday || storedToday.date !== todayKey) {
       const freshUsage = this.touchUsage(todayKey)
       await this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, freshUsage)
@@ -173,9 +173,9 @@ export class TimeTrackingService {
   private async persist(): Promise<void> {
     const todayKey = getLocalDateKey()
     const todayUsage = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
-    
+
     const storageArea = chrome.storage.session || chrome.storage.local
-    
+
     await Promise.all([
       this.storage.set(STORAGE_KEYS.TIME_TRACKING_HISTORY, this.historyCache),
       this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, todayUsage),
@@ -241,7 +241,7 @@ export class TimeTrackingService {
         .map(async (tab) => {
           try {
             await chrome.tabs.sendMessage(tab.id as number, message)
-          } catch {}
+          } catch { }
         })
     )
   }

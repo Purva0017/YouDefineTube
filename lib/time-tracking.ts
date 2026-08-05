@@ -35,7 +35,7 @@ export const getLocalDateKey = (timestamp = Date.now()) => {
 }
 
 export const createEmptyDailyUsage = (date = getLocalDateKey()): DailyUsage => ({
-  date,
+  date, // shorthand notation for "date: date"
   totalYoutubeMs: 0,
   watchVideoMs: 0,
   browseMs: 0,

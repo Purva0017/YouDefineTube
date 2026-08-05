@@ -5,7 +5,9 @@ export const MESSAGES = {
   DAILY_LIMIT_REACHED: "YDT_DAILY_LIMIT_REACHED",
   REQUEST_EXTENSION: "YDT_REQUEST_EXTENSION",
   CLOSE_ALL_TABS: "YDT_CLOSE_ALL_TABS",
-  CLOSE_CURRENT_TAB: "YDT_CLOSE_CURRENT_TAB"
+  CLOSE_CURRENT_TAB: "YDT_CLOSE_CURRENT_TAB",
+  GET_CURRENT_TIME: "YDT_GET_CURRENT_TIME",
+  SEEK_TO_TIME: "YDT_SEEK_TO_TIME"
 } as const
 
 export type TimeTrackingReportMessage = {
@@ -33,9 +35,22 @@ export type CloseCurrentTabMessage = {
   type: typeof MESSAGES.CLOSE_CURRENT_TAB
 }
 
+export type GetCurrentTimeMessage = {
+  type: typeof MESSAGES.GET_CURRENT_TIME
+}
+
+export type SeekToTimeMessage = {
+  type: typeof MESSAGES.SEEK_TO_TIME
+  payload: {
+    time: number
+  }
+}
+
 export type Message =
   | TimeTrackingReportMessage
   | DailyLimitReachedMessage
   | ExtensionRequestMessage
   | CloseTabsMessage
   | CloseCurrentTabMessage
+  | GetCurrentTimeMessage
+  | SeekToTimeMessage

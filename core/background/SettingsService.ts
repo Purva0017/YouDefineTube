@@ -8,7 +8,7 @@ export class SettingsService {
   private cache: Settings = { ...defaultSettings }
   private listeners: Array<(next: Settings, prev: Settings) => void> = []
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): SettingsService {
     if (!SettingsService.instance) {

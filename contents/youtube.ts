@@ -10,6 +10,8 @@ import { TimeReporter } from "~/core/contents/TimeReporter"
 import { OverlayManager } from "~/core/contents/OverlayManager"
 import { NavigationManager } from "~/core/contents/NavigationManager"
 import { SearchRefiner } from "~/core/contents/SearchRefiner"
+import { AudioManager } from "~/core/contents/AudioManager"
+import { isFocusScheduleActive } from "~/lib/focus-blocker"
 
 export const config: PlasmoCSConfig = {
   matches: ["https://www.youtube.com/*", "https://m.youtube.com/*"],
@@ -23,8 +25,78 @@ const timeReporter = new TimeReporter()
 const overlayManager = new OverlayManager()
 const navigationManager = new NavigationManager()
 const searchRefiner = new SearchRefiner()
+const audioManager = new AudioManager()
 
 let settings: Settings = { ...defaultSettings }
+
+const showGoalOverlay = (goal: string) => {
+  overlayManager.showFrictionGoalOverlay(
+    goal,
+    () => {
+      chrome.runtime.sendMessage({ type: MESSAGES.CLOSE_CURRENT_TAB })
+    },
+    () => {
+      try {
+        sessionStorage.setItem("ydt_friction_goal_dismissed", "true")
+      } catch {}
+      overlayManager.removeFrictionGoalOverlay()
+    }
+  )
+}
+
+const checkFocusAndFriction = () => {
+  if (!document.body) return
+
+  const focus = isFocusScheduleActive(settings)
+  if (focus.active && focus.schedule) {
+    overlayManager.removeFrictionPrompt()
+    overlayManager.removeFrictionGoalOverlay()
+    overlayManager.showFocusBlockerAlert(
+      focus.schedule.name,
+      focus.schedule.startTime,
+      focus.schedule.endTime
+    )
+    return
+  } else {
+    overlayManager.removeFocusBlockerAlert()
+  }
+
+  if (settings.isExtensionEnabled && settings.enableFrictionScreen) {
+    let goalDismissed = false
+    try {
+      goalDismissed = sessionStorage.getItem("ydt_friction_goal_dismissed") === "true"
+    } catch {}
+
+    if (goalDismissed) {
+      overlayManager.removeFrictionPrompt()
+      overlayManager.removeFrictionGoalOverlay()
+      return
+    }
+
+    let prompted = false
+    let currentGoal = ""
+    try {
+      prompted = sessionStorage.getItem("ydt_friction_prompted") === "true"
+      currentGoal = sessionStorage.getItem("ydt_friction_goal") || ""
+    } catch {}
+
+    if (!prompted) {
+      overlayManager.showFrictionPrompt((goal) => {
+        try {
+          sessionStorage.setItem("ydt_friction_prompted", "true")
+          sessionStorage.setItem("ydt_friction_goal", goal)
+        } catch {}
+        overlayManager.removeFrictionPrompt()
+        showGoalOverlay(goal)
+      })
+    } else {
+      showGoalOverlay(currentGoal)
+    }
+  } else {
+    overlayManager.removeFrictionPrompt()
+    overlayManager.removeFrictionGoalOverlay()
+  }
+}
 
 const loadSettings = async () => {
   settings = {
@@ -33,10 +105,12 @@ const loadSettings = async () => {
   }
   
   distractionManager.apply(settings)
+  audioManager.apply(settings)
   
   // These require DOM body, so we call them safely
   if (document.body) {
     overlayManager.updateHomepageMessage(settings)
+    checkFocusAndFriction()
   }
   
   const todayUsage = await storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
@@ -53,9 +127,11 @@ const watchStorage = () => {
       settings = next
       
       distractionManager.apply(settings)
+      audioManager.apply(settings)
       if (document.body) {
         overlayManager.updateHomepageMessage(settings)
         searchRefiner.update(settings)
+        checkFocusAndFriction()
       }
       
       const prevHideShorts = prev.isExtensionEnabled && prev.hideShorts
@@ -93,26 +169,40 @@ const initializeContentScript = async () => {
   watchStorage()
   
   const initUi = () => {
+    audioManager.init()
     timeReporter.initialize()
     searchRefiner.observe(settings)
     overlayManager.updateHomepageMessage(settings)
+    checkFocusAndFriction()
     
     document.addEventListener("yt-navigate-finish", () => {
       overlayManager.updateHomepageMessage(settings)
       searchRefiner.update(settings)
       navigationManager.handleRedirections(settings)
       timeReporter.queueReport()
+      checkFocusAndFriction()
     })
 
-    chrome.runtime.onMessage.addListener((message) => {
+    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message?.type === MESSAGES.DAILY_LIMIT_REACHED && settings.isExtensionEnabled) {
         overlayManager.showDailyLimitAlert(message.payload.limitMinutes, message.payload.extensionsUsed || 0)
+      } else if (message?.type === MESSAGES.GET_CURRENT_TIME) {
+        const video = document.querySelector("video")
+        sendResponse({ time: video ? video.currentTime : null })
+        return true
+      } else if (message?.type === MESSAGES.SEEK_TO_TIME) {
+        const video = document.querySelector("video")
+        if (video) {
+          video.currentTime = message.payload.time
+          video.play().catch(() => {})
+        }
       }
     })
 
     // Periodical checks
     setInterval(() => {
       navigationManager.handleRedirections(settings)
+      checkFocusAndFriction()
     }, 1000)
   }
 

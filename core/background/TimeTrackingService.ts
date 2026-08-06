@@ -9,6 +9,7 @@ import {
 } from "~/lib/time-tracking"
 import { SettingsService } from "./SettingsService"
 import { MESSAGES } from "~/lib/messaging"
+import { EXTENSION_ICON_URL } from "~/lib/assets"
 
 type LiveSession = TimeTrackingSnapshot & {
   lastTickAt: number
@@ -217,7 +218,7 @@ export class TimeTrackingService {
 
     await chrome.notifications.create(`ydt-daily-limit-${todayKey}`, {
       type: "basic",
-      iconUrl: chrome.runtime.getURL("assets/icon.png"),
+      iconUrl: EXTENSION_ICON_URL,
       title: "YouDefineTube daily limit reached",
       message: `You've reached your ${settings.dailyLimitMinutes}-minute YouTube limit for today.`
     })

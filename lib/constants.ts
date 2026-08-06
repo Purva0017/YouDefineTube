@@ -81,5 +81,15 @@ export const SELECTORS = {
     'ytd-browse[page-subtype="home"] #contents',
     "ytm-browse ytm-rich-grid-renderer",
     "ytm-browse ytm-item-section-renderer"
+  ],
+  MASTHEAD_BUTTONS: [
+    "ytd-masthead #end #buttons",
+    "#masthead #end #buttons",
+    "ytd-masthead #buttons"
+  ],
+  MASTHEAD_INSERT_BEFORE: [
+    "ytd-notification-topbar-button-renderer",
+    "#notification-button",
+    "ytd-topbar-menu-button-renderer"
   ]
 }

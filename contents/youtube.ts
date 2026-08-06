@@ -11,6 +11,8 @@ import { OverlayManager } from "~/core/contents/OverlayManager"
 import { NavigationManager } from "~/core/contents/NavigationManager"
 import { SearchRefiner } from "~/core/contents/SearchRefiner"
 import { AudioManager } from "~/core/contents/AudioManager"
+import { HeaderButtonManager } from "~/core/contents/HeaderButtonManager"
+import { InlinePanelManager } from "~/core/contents/InlinePanelManager"
 import { isFocusScheduleActive } from "~/lib/focus-blocker"
 
 export const config: PlasmoCSConfig = {
@@ -26,6 +28,8 @@ const overlayManager = new OverlayManager()
 const navigationManager = new NavigationManager()
 const searchRefiner = new SearchRefiner()
 const audioManager = new AudioManager()
+const inlinePanelManager = new InlinePanelManager()
+const headerButtonManager = new HeaderButtonManager(inlinePanelManager)
 
 let settings: Settings = { ...defaultSettings }
 
@@ -169,6 +173,8 @@ const initializeContentScript = async () => {
   watchStorage()
   
   const initUi = () => {
+    inlinePanelManager.preload()
+    headerButtonManager.init()
     audioManager.init()
     timeReporter.initialize()
     searchRefiner.observe(settings)
@@ -176,6 +182,7 @@ const initializeContentScript = async () => {
     checkFocusAndFriction()
     
     document.addEventListener("yt-navigate-finish", () => {
+      headerButtonManager.refresh()
       overlayManager.updateHomepageMessage(settings)
       searchRefiner.update(settings)
       navigationManager.handleRedirections(settings)

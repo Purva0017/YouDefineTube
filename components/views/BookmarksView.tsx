@@ -22,6 +22,7 @@ interface BookmarksViewProps {
     label: string
   }
   isDark: boolean
+  inline?: boolean
 }
 
 // Help parse video IDs from URLs (supports watch page and Shorts)
@@ -51,7 +52,7 @@ export function getYouTubeVideoId(url: string): string | null {
   return null
 }
 
-export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
+export function BookmarksView({ colors, isDark, inline = false }: BookmarksViewProps) {
   // Store all bookmarks as Record<videoId, Bookmark[]>
   const [allBookmarks, setAllBookmarks] = useStorage<Record<string, Bookmark[]>>("bookmarks", {})
 
@@ -71,6 +72,17 @@ export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
 
   // Detect active tab and parsing URL on mount
   useEffect(() => {
+    if (inline) {
+      const videoId = getYouTubeVideoId(window.location.href)
+      setActiveTab({
+        id: 0,
+        url: window.location.href,
+        title: document.title || "YouTube Video",
+        videoId
+      })
+      return
+    }
+
     const checkActiveTab = async () => {
       try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -89,11 +101,26 @@ export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
       }
     }
     checkActiveTab()
-  }, [])
+  }, [inline])
 
   // Poll video currentTime if active tab is a YouTube video
   useEffect(() => {
-    if (!activeTab || !activeTab.videoId || !activeTab.id) {
+    if (!activeTab || !activeTab.videoId) {
+      setCurrentTime(null)
+      return
+    }
+
+    if (inline) {
+      const pollTime = () => {
+        const video = document.querySelector<HTMLVideoElement>("video.html5-main-video, video")
+        setCurrentTime(video && !isNaN(video.currentTime) ? video.currentTime : null)
+      }
+      pollTime()
+      const interval = setInterval(pollTime, 1000)
+      return () => clearInterval(interval)
+    }
+
+    if (!activeTab.id) {
       setCurrentTime(null)
       return
     }
@@ -101,7 +128,6 @@ export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
     const pollTime = () => {
       chrome.tabs.sendMessage(activeTab.id, { type: MESSAGES.GET_CURRENT_TIME }, (response) => {
         if (chrome.runtime.lastError) {
-          // Content script might not be loaded or ready
           setCurrentTime(null)
         } else if (response && typeof response.time === "number") {
           setCurrentTime(response.time)
@@ -111,13 +137,10 @@ export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
       })
     }
 
-    // Initial check immediately
     pollTime()
-
-    // Poll every 1 second
     const interval = setInterval(pollTime, 1000)
     return () => clearInterval(interval)
-  }, [activeTab])
+  }, [activeTab, inline])
 
   // Formats time in seconds to MM:SS or H:MM:SS
   const formatTime = (secs: number) => {
@@ -135,6 +158,11 @@ export function BookmarksView({ colors, isDark }: BookmarksViewProps) {
 
   // Seek video player to specific time
   const handleSeek = (time: number) => {
+    if (inline) {
+      const video = document.querySelector<HTMLVideoElement>("video.html5-main-video, video")
+      if (video) video.currentTime = time
+      return
+    }
     if (!activeTab || !activeTab.id) return
     chrome.tabs.sendMessage(activeTab.id, {
       type: MESSAGES.SEEK_TO_TIME,

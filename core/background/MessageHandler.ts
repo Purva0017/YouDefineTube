@@ -17,7 +17,7 @@ export class MessageHandler {
   public initialize(): void {
     chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse)
-      return true // Keep channel open for async response
+      return true
     })
   }
 

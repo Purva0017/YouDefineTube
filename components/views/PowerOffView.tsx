@@ -1,55 +1,59 @@
 import { useSettings } from "~/hooks/useSettings"
-import { type Settings } from "~/lib/settings"
+import type { ThemeColors } from "~/lib/theme"
 import { Icons } from "../ui/Icons"
 
-export function PowerOffView({ colors }: { colors: any }) {
+export function PowerOffView({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const { toggleSetting } = useSettings()
 
   return (
-    <div style={{
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      flex: 1,
-      padding: "0 32px",
-      textAlign: "center"
-    }}>
-      <button
-        onClick={() => toggleSetting("isExtensionEnabled")}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        flex: 1,
+        padding: "32px 28px",
+        textAlign: "center"
+      }}>
+      <div
         style={{
-          width: 120,
-          height: 120,
-          borderRadius: "50%",
-          background: "#ef4444",
-          border: "none",
-          cursor: "pointer",
+          width: 100,
+          height: 100,
+          borderRadius: 28,
+          background: colors.tabBg,
+          border: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 10px 25px rgba(239, 68, 68, 0.4)",
-          transition: "transform 0.1s, box-shadow 0.1s",
-          marginBottom: 32
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = "scale(0.95)"
-          e.currentTarget.style.boxShadow = "0 5px 15px rgba(239, 68, 68, 0.3)"
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = "scale(1)"
-          e.currentTarget.style.boxShadow = "0 10px 25px rgba(239, 68, 68, 0.4)"
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)"
-          e.currentTarget.style.boxShadow = "0 10px 25px rgba(239, 68, 68, 0.4)"
-        }}
-      >
-        <Icons.Power isOn={true} size={64} color="white" />
-      </button>
-      <h2 style={{ margin: "0 0 12px 0", fontSize: 24, fontWeight: 800 }}>Extension is Off</h2>
-      <p style={{ margin: 0, fontSize: 15, color: colors.subtext, lineHeight: 1.5 }}>
-        YouDefineTube is currently sleeping. YouTube is running with its default settings. Click the power button to wake it up.
+          marginBottom: 24
+        }}>
+        <Icons.Power isOn={false} size={44} color={colors.danger} />
+      </div>
+
+      <h2 style={{ margin: "0 0 8px 0", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
+        Extension is paused
+      </h2>
+      <p style={{ margin: "0 0 28px 0", fontSize: 14, color: colors.subtext, lineHeight: 1.6, maxWidth: 280 }}>
+        YouTube is running with default settings. Turn on YouDefineTube to block distractions and track your time.
       </p>
+
+      <button
+        type="button"
+        onClick={() => toggleSetting("isExtensionEnabled")}
+        style={{
+          padding: "14px 28px",
+          borderRadius: 14,
+          background: colors.accentGradient,
+          border: "none",
+          color: "#fff",
+          fontSize: 14,
+          fontWeight: 700,
+          cursor: "pointer",
+          boxShadow: `0 10px 24px ${colors.accentSoft}`
+        }}>
+        Turn on YouDefineTube
+      </button>
     </div>
   )
 }

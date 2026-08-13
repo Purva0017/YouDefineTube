@@ -19,7 +19,7 @@ There is no server-side component. All persistence uses browser storage APIs.
 │                         Browser Extension (MV3)                          │
 ├──────────────────┬────────────────────────┬─────────────────────────────┤
 │  POPUP           │  BACKGROUND            │  CONTENT SCRIPT              │
-│  popup.tsx       │  background.ts         │  contents/youtube.ts         │
+│  popup.tsx       │  background.ts         │  contents/youtube.ts         │  ← thin entry; delegates to ContentScriptController
 │                  │                        │                              │
 │  components/     │  SettingsService       │  DistractionManager (CSS)    │
 │  hooks/          │  TimeTrackingService   │  AudioManager (Web Audio)      │
@@ -231,18 +231,19 @@ Bookmark messages use `chrome.tabs.sendMessage` from popup to active tab — **n
 | Focus logic in `lib/` | Pure function, testable | Content script still polls every 1s |
 | Bookmarks via tab messages | Needs live video element | Only works when popup open on YouTube tab |
 | `activeTab` permission | Query current tab for bookmarks | Requires user gesture context |
-| `zod` in dependencies | Added but **not yet used** in code | Dead dependency until validation added |
+| `zod` in dependencies | Used in `lib/parse-settings.ts` for settings validation on load |
 | Theme: light/dark only | Simplified from system/light/dark | No OS theme sync |
 
 ---
 
-## Known Issues (Pre-Phase-1-Fix)
+## Known Issues
 
 | Issue | Status |
 |-------|--------|
-| `TimeReporter` listener leak (arrow fn in removeEventListener) | **Not fixed** |
-| `SearchRefiner` stale settings in MutationObserver closure | **Not fixed** |
-| Time tracking when extension off | **Not fixed** |
-| Keyboard shortcut (Ctrl+Shift+Y) | **Not implemented** |
-| Timer hidden when extension off | **Fixed** in UI refactor |
-| `zod` dependency unused | Present in package.json only |
+| `TimeReporter` listener leak | **Fixed** — stable bound handlers |
+| `SearchRefiner` stale settings | **Fixed** — class-held settings + unhide on toggle off |
+| Time tracking when extension off | **Fixed** — `setTrackingEnabled()` gate + flush on power-off |
+| Storage quota from frequent writes | **Fixed** — debounced persist + volume/daily-limit save UX |
+| Keyboard shortcut (Ctrl+Shift+Y) | **Out of scope** — not planned |
+| `zod` validation | **Implemented** — `parseSettings()` in `lib/parse-settings.ts` |
+| Monolithic `youtube.ts` | **Refactored** — `ContentScriptController` |

@@ -78,4 +78,7 @@ export const defaultSettings: Settings = {
   isFocusCategoryOpen: true
 }
 
+export { focusScheduleSchema, settingsSchema } from "./settings.schema"
+export { parseSettings } from "./parse-settings"
+
 

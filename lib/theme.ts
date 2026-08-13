@@ -12,70 +12,80 @@ export type ThemeColors = {
   inputBorder: string
   label: string
   accent: string
+  accentHover: string
   accentSoft: string
-  accentGradient: string
   success: string
+  successSoft: string
   danger: string
   dangerSoft: string
   shadow: string
+  shadowSm: string
   overlay: string
   tabBg: string
   tabActive: string
 }
 
+/*
+ * Cool charcoal palette — less warmth, slightly darker.
+ * Accent: warm red (#e04555 dark / #d63344 light).
+ */
 export function getThemeColors(isDark: boolean): ThemeColors {
   if (isDark) {
     return {
-      bg: "#0b0b0f",
-      bgElevated: "#121218",
-      cardBg: "#16161d",
-      cardHover: "#1c1c25",
-      text: "#f4f4f5",
-      subtext: "#a1a1aa",
-      muted: "#71717a",
+      bg: "#121214",
+      bgElevated: "#18181c",
+      cardBg: "#1c1c20",
+      cardHover: "#242428",
+      text: "#ececef",
+      subtext: "#9a9aa3",
+      muted: "#6e6e78",
       border: "rgba(255,255,255,0.08)",
       borderStrong: "rgba(255,255,255,0.14)",
-      inputBg: "#1a1a22",
+      inputBg: "#222226",
       inputBorder: "rgba(255,255,255,0.12)",
-      label: "#8b8b96",
-      accent: "#ff2d55",
-      accentSoft: "rgba(255,45,85,0.14)",
-      accentGradient: "linear-gradient(135deg, #ff2d55 0%, #ff6b35 100%)",
-      success: "#22c55e",
-      danger: "#ef4444",
-      dangerSoft: "rgba(239,68,68,0.15)",
-      shadow: "0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)",
-      overlay: "rgba(0,0,0,0.5)",
+      label: "#84848e",
+      accent: "#e04555",
+      accentHover: "#f05565",
+      accentSoft: "rgba(224,69,85,0.14)",
+      success: "#5a9a6e",
+      successSoft: "rgba(90,154,110,0.14)",
+      danger: "#c44c3f",
+      dangerSoft: "rgba(196,76,63,0.14)",
+      shadow: "0 8px 32px rgba(0,0,0,0.4)",
+      shadowSm: "0 1px 3px rgba(0,0,0,0.25)",
+      overlay: "rgba(0,0,0,0.6)",
       tabBg: "rgba(255,255,255,0.04)",
-      tabActive: "#1f1f28"
+      tabActive: "#242428"
     }
   }
 
   return {
-    bg: "#fafafa",
+    bg: "#f4f4f6",
     bgElevated: "#ffffff",
     cardBg: "#ffffff",
-    cardHover: "#f8fafc",
-    text: "#18181b",
-    subtext: "#52525b",
-    muted: "#a1a1aa",
-    border: "rgba(0,0,0,0.06)",
-    borderStrong: "rgba(0,0,0,0.1)",
+    cardHover: "#efeff2",
+    text: "#1a1a1e",
+    subtext: "#5c5c66",
+    muted: "#8e8e98",
+    border: "rgba(0,0,0,0.08)",
+    borderStrong: "rgba(0,0,0,0.13)",
     inputBg: "#ffffff",
-    inputBorder: "rgba(0,0,0,0.1)",
-    label: "#71717a",
-    accent: "#e11d48",
-    accentSoft: "rgba(225,29,72,0.1)",
-    accentGradient: "linear-gradient(135deg, #e11d48 0%, #f97316 100%)",
-    success: "#16a34a",
-    danger: "#dc2626",
-    dangerSoft: "rgba(220,38,38,0.1)",
-    shadow: "0 24px 64px rgba(15,23,42,0.18), 0 0 0 1px rgba(0,0,0,0.04)",
-    overlay: "rgba(15,23,42,0.35)",
+    inputBorder: "rgba(0,0,0,0.12)",
+    label: "#6e6e78",
+    accent: "#d63344",
+    accentHover: "#b82a38",
+    accentSoft: "rgba(214,51,68,0.09)",
+    success: "#4a8a5e",
+    successSoft: "rgba(74,138,94,0.09)",
+    danger: "#c44c3f",
+    dangerSoft: "rgba(196,76,63,0.09)",
+    shadow: "0 8px 32px rgba(0,0,0,0.08)",
+    shadowSm: "0 1px 3px rgba(0,0,0,0.06)",
+    overlay: "rgba(0,0,0,0.25)",
     tabBg: "rgba(0,0,0,0.04)",
     tabActive: "#ffffff"
   }
 }
 
-export const PANEL_WIDTH = 420
-export const PANEL_MAX_HEIGHT = 640
+export const PANEL_WIDTH = 440
+export const PANEL_MAX_HEIGHT = 660

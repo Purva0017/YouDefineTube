@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   SETTINGS: "settings",
+  BOOKMARKS: "bookmarks",
   TIME_TRACKING_HISTORY: "timeTrackingHistory",
   TIME_TRACKING_TODAY: "timeTrackingToday",
   LIVE_SESSIONS: "timeTrackingLiveSessions"
@@ -9,7 +10,11 @@ export const TIMERS = {
   HEARTBEAT: 15000,
   TICK: 600,
   RETRY_PAUSE: 200,
-  MAX_PAUSE_ATTEMPTS: 30
+  MAX_PAUSE_ATTEMPTS: 30,
+  /** Min interval between chrome.storage writes for time tracking */
+  PERSIST_DEBOUNCE_MS: 8000,
+  /** How often to flush the full history object (today + sessions write more often) */
+  HISTORY_PERSIST_MS: 45000
 }
 
 export const SELECTORS = {

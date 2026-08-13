@@ -5,9 +5,12 @@
   "description": "Redefine your YouTube experience. Block addictive distractions, set daily limits, and track your time for better focus.",
   "author": "Purva",
   "scripts": {
-    "dev": "plasmo dev",
-    "build": "plasmo build",
-    "package": "plasmo package"
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=8192 PARCEL_WORKERS=1 plasmo dev",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 plasmo build",
+    "package": "plasmo package",
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest run",
+    "test:watch": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest",
+    "test:coverage": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest run --coverage"
   },
   "dependencies": {
     "@plasmohq/storage": "^1.15.0",
@@ -22,9 +25,13 @@
     "@types/node": "20.11.5",
     "@types/react": "18.2.48",
     "@types/react-dom": "18.2.18",
+    "@vitest/coverage-v8": "^3.2.4",
     "baseline-browser-mapping": "^2.10.29",
+    "cross-env": "^7.0.3",
+    "jsdom": "^26.1.0",
     "prettier": "3.2.4",
-    "typescript": "5.3.3"
+    "typescript": "5.3.3",
+    "vitest": "^3.2.4"
   },
   "manifest": {
     "permissions": [

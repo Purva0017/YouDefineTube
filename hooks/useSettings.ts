@@ -1,12 +1,16 @@
 import { useStorage } from "@plasmohq/storage/hook"
-import { type Settings, defaultSettings } from "~/lib/settings"
+import { type Settings, defaultSettings, parseSettings } from "~/lib/settings"
 
 export function useSettings() {
-  const [settings, setSettings] = useStorage<Settings>("settings", defaultSettings)
+  const [rawSettings, setRawSettings] = useStorage<Settings>("settings", defaultSettings)
+  const settings = parseSettings(rawSettings)
 
-  // // simply flips the boolean value of the passed key in settings object
+  const setSettings = (next: Settings | Partial<Settings>) => {
+    setRawSettings(parseSettings({ ...settings, ...next }))
+  }
+
   const toggleSetting = (key: keyof Settings) => {
-    setSettings({ ...(settings || defaultSettings), [key]: !settings?.[key] }) // settings?. becuase if settings is undefined, settings?.[key] returns undefined and !undefined gives true & if settings was undefined, defaultSettings will be used and defaultSettings has default values of most booleans as false so !undefined giving true would be equivalent to !false
+    setSettings({ [key]: !settings[key] })
   }
 
   return {

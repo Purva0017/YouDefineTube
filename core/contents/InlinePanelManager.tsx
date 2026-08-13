@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client"
 import { ExtensionApp } from "~/components/ExtensionApp"
+import { attachScrollIsolation } from "~/lib/scroll-isolation"
 import { PANEL_MAX_HEIGHT, PANEL_WIDTH } from "~/lib/theme"
 
 const PANEL_ID = "ydt-inline-panel-host"
@@ -15,6 +16,7 @@ export class InlinePanelManager {
   private onOutsideClick: ((e: MouseEvent) => void) | null = null
   private onStateChange: ((open: boolean) => void) | null = null
   private onReposition: (() => void) | null = null
+  private detachScrollIsolation: (() => void) | null = null
 
   public setOnStateChange(cb: (open: boolean) => void): void {
     this.onStateChange = cb
@@ -105,15 +107,16 @@ export class InlinePanelManager {
       transformOrigin: "top right",
       transition: "opacity 0.15s ease, transform 0.15s ease",
       pointerEvents: "none",
-      borderRadius: "20px",
+      borderRadius: "14px",
       overflow: "hidden",
       background: "transparent",
       boxShadow: isDark
-        ? "0 24px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06)"
-        : "0 24px 64px rgba(15,23,42,0.18), 0 0 0 1px rgba(0,0,0,0.04)",
+        ? "0 12px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,245,230,0.06)"
+        : "0 12px 40px rgba(44,37,32,0.12), 0 0 0 1px rgba(44,37,32,0.06)",
       zIndex: "2147483647"
     })
     panelWrap.addEventListener("mousedown", (e) => e.stopPropagation())
+    this.detachScrollIsolation = attachScrollIsolation(panelWrap)
 
     const mountEl = document.createElement("div")
     mountEl.style.height = "100%"

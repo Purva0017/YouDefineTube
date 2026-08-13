@@ -49,3 +49,7 @@ export const getNextLocalMidnight = (timestamp: number) => {
   const date = new Date(timestamp)
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime()
 }
+
+/** Base daily limit plus 5-minute extensions already granted today. */
+export const getEffectiveDailyLimitMinutes = (baseLimitMinutes: number, extensionsUsed = 0) =>
+  baseLimitMinutes + extensionsUsed * 5

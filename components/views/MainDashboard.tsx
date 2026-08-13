@@ -1,561 +1,681 @@
-import { useState } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { useSettings } from "~/hooks/useSettings"
 import { type Settings, defaultSettings } from "~/lib/settings"
+import type { ThemeColors } from "~/lib/theme"
 import { Icons } from "../ui/Icons"
 import { CustomToggle } from "../ui/CustomToggle"
+import { BlockSection } from "../ui/BlockSection"
+import { MasonryGrid } from "../ui/MasonryGrid"
+import { MasonryTile, type MasonryTileSize } from "../ui/MasonryTile"
+import { WaveRangeSlider } from "../ui/WaveRangeSlider"
 import { formatTimeStr } from "~/lib/utils"
 
-export function MainDashboard({ colors, isDark }: { colors: any; isDark: boolean }) {
-  const { settings, toggleSetting, setSettings } = useSettings()
-  const isGeneralOpen = settings?.isGeneralCategoryOpen ?? true // The ?? operator checks if the value on its left is nullish (either null or undefined). If the left value is undefined (meaning the settings are still loading or this setting doesn't exist yet), it uses the fallback value on the right.
-  const isSearchOpen = settings?.isSearchCategoryOpen ?? true
-  const isAudioOpen = settings?.isAudioCategoryOpen ?? true
-  const isFocusOpen = settings?.isFocusCategoryOpen ?? true
+type BlockKey = keyof Settings
 
-  const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(null)
+type BlockDef = {
+  key: BlockKey
+  label: string
+  description: string
+  icon: ReactNode
+  size?: MasonryTileSize
+}
 
+const DISTRACTION_BLOCKS: BlockDef[] = [
+  { key: "hideShorts", label: "Shorts", description: "Remove Shorts shelf & tab", icon: <Icons.Shorts />, size: "lg" },
+  {
+    key: "hideHomepageRecommendations",
+    label: "Home Feed",
+    description: "Hide recommended videos",
+    icon: <Icons.Home />,
+    size: "lg"
+  },
+  { key: "hideVideoSidebarRecommendations", label: "Sidebar", description: "Hide suggested videos", icon: <Icons.Sidebar />, size: "md" },
+  { key: "hideComments", label: "Comments", description: "Hide comment section", icon: <Icons.Comments />, size: "sm" },
+  { key: "hideEndScreen", label: "End Cards", description: "Block end-screen clutter", icon: <Icons.EndScreen />, size: "lg" },
+  { key: "hidePlayables", label: "Playables", description: "Hide mini-games", icon: <Icons.Gamepad />, size: "sm" },
+  { key: "hideLiveChat", label: "Live Chat", description: "Hide stream chat", icon: <Icons.Chat />, size: "md" }
+]
+
+const SEARCH_BLOCKS: BlockDef[] = [
+  { key: "gridSearchMode", label: "Grid Layout", description: "Compact search results", icon: <Icons.Grid />, size: "lg" },
+  { key: "hidePeopleAlsoWatched", label: "People Watched", description: "Remove watched shelf", icon: <Icons.Search />, size: "md" },
+  { key: "hideExploreMore", label: "Explore More", description: "Hide explore rows", icon: <Icons.Search />, size: "lg" },
+  { key: "hidePeopleAlsoSearchFor", label: "Also Search", description: "Hide search suggestions", icon: <Icons.Search />, size: "sm" },
+  { key: "hideFromRelatedSearches", label: "Related", description: "Hide related searches", icon: <Icons.Search />, size: "sm" },
+  { key: "hideChannelsNewToYou", label: "New Channels", description: "Hide channel promos", icon: <Icons.Search />, size: "md" }
+]
+
+const PRESETS: {
+  id: string
+  label: string
+  description: string
+  patch: Partial<Settings>
+}[] = [
+  {
+    id: "focus",
+    label: "Focus",
+    description: "Block feeds & distractions",
+    patch: {
+      hideShorts: true,
+      hideHomepageRecommendations: true,
+      hideVideoSidebarRecommendations: true,
+      hideComments: true,
+      hideEndScreen: true,
+      hidePlayables: true,
+      enableFrictionScreen: true
+    }
+  },
+  {
+    id: "clean",
+    label: "Clean Feed",
+    description: "Tame homepage & sidebar",
+    patch: {
+      hideShorts: true,
+      hideHomepageRecommendations: true,
+      hideVideoSidebarRecommendations: true,
+      hideEndScreen: true
+    }
+  },
+  {
+    id: "search",
+    label: "Clean Search",
+    description: "Strip search clutter",
+    patch: {
+      gridSearchMode: true,
+      hidePeopleAlsoWatched: true,
+      hidePeopleAlsoSearchFor: true,
+      hideFromRelatedSearches: true,
+      hideChannelsNewToYou: true,
+      hideExploreMore: true
+    }
+  },
+  {
+    id: "minimal",
+    label: "Minimal",
+    description: "Reset block settings",
+    patch: {
+      hideShorts: defaultSettings.hideShorts,
+      hideHomepageRecommendations: false,
+      redirectToSubscriptions: false,
+      hideVideoSidebarRecommendations: false,
+      hideComments: false,
+      hideEndScreen: defaultSettings.hideEndScreen,
+      hideLiveChat: false,
+      hidePlayables: false,
+      hidePeopleAlsoWatched: false,
+      hidePeopleAlsoSearchFor: false,
+      hideFromRelatedSearches: false,
+      hideChannelsNewToYou: false,
+      hideExploreMore: false,
+      gridSearchMode: false,
+      audioVocalBoost: false,
+      audioVolumeBoost: 100,
+      enableFrictionScreen: false,
+      enableFocusBlocker: false
+    }
+  }
+]
+
+function countActive(keys: BlockKey[], settings: Settings | null): number {
+  return keys.filter((key) => !!settings?.[key]).length
+}
+
+function renderSchedulePanel({
+  settings,
+  setSettings,
+  expandedScheduleId,
+  setExpandedScheduleId,
+  colors,
+  isDark
+}: {
+  settings: Settings
+  setSettings: (s: Settings) => void
+  expandedScheduleId: string | null
+  setExpandedScheduleId: (id: string | null) => void
+  colors: ThemeColors
+  isDark: boolean
+}) {
   const formatScheduleDays = (days: number[]) => {
     if (!days || days.length === 0) return "No days"
     if (days.length === 7) return "Everyday"
-    if (days.length === 5 && [1, 2, 3, 4, 5].every(d => days.includes(d))) return "Weekdays"
-    if (days.length === 2 && [0, 6].every(d => days.includes(d))) return "Weekends"
+    if (days.length === 5 && [1, 2, 3, 4, 5].every((d) => days.includes(d))) return "Weekdays"
+    if (days.length === 2 && [0, 6].every((d) => days.includes(d))) return "Weekends"
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    const sorted = [...days].sort((a, b) => a - b)
-    return sorted.map(d => dayNames[d]).join(", ")
+    return [...days].sort((a, b) => a - b).map((d) => dayNames[d]).join(", ")
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* General Distractions Header */}
-      <div
-        onClick={() => toggleSetting("isGeneralCategoryOpen")}
-        className="category-header"
-        style={{ marginTop: 2 }}>
-        <Icons.CategoryToggle rotated={isGeneralOpen} />
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.06em",
-          color: isDark ? "#cccccc" : "#555555",
-          flex: 1
-        }}>
-          General Distractions
-        </span>
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {(settings.focusSchedules || []).map((sched) => (
+        <div
+          key={sched.id}
+          style={{
+            background: colors.tabBg,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 8,
+            padding: "12px 14px"
+          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setExpandedScheduleId(expandedScheduleId === sched.id ? null : sched.id)}
+              style={{
+                flex: 1,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+                color: colors.text
+              }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{sched.name}</div>
+              <div style={{ fontSize: 12, color: colors.muted, marginTop: 3 }}>
+                {formatScheduleDays(sched.days)} · {formatTimeStr(sched.startTime)} – {formatTimeStr(sched.endTime)}
+              </div>
+            </button>
+            <CustomToggle
+              checked={sched.enabled}
+              onChange={() => {
+                const nextSchedules = settings.focusSchedules.map((s) =>
+                  s.id === sched.id ? { ...s, enabled: !s.enabled } : s
+                )
+                setSettings({ ...settings, focusSchedules: nextSchedules })
+              }}
+              isDark={isDark}
+              colors={colors}
+              size="small"
+            />
+          </div>
 
-      {isGeneralOpen && (
-        <div style={{ paddingLeft: 18 }}>
-          {[
-            { key: "hideShorts", label: "Hide Shorts", icon: <Icons.Shorts /> },
-            { key: "hideHomepageRecommendations", label: "Hide Homepage Recommendations", icon: <Icons.Home /> },
-            { key: "hideVideoSidebarRecommendations", label: "Hide Video Sidebar Recommendations", icon: <Icons.Sidebar /> },
-            { key: "hideComments", label: "Hide Comments", icon: <Icons.Comments /> },
-            { key: "hideEndScreen", label: "Hide End Screen", icon: <Icons.EndScreen /> },
-            { key: "hidePlayables", label: "Hide Playables", icon: <Icons.Gamepad /> },
-            { key: "hideLiveChat", label: "Hide Live Chat", icon: <Icons.Chat /> },
-          ].map((item) => (
-            <div key={item.key}>
-              <div className="setting-row">
-                <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-                  <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}>{item.icon}</div>
-                  {item.label}
-                  {item.key === "hideHomepageRecommendations" && (
-                    <Icons.Chevron rotated={!!settings?.hideHomepageRecommendations} />
-                  )}
-                </div>
-                <CustomToggle
-                  checked={!!settings?.[item.key as keyof Settings]}
-                  onChange={() => toggleSetting(item.key as keyof Settings)}
-                  isDark={isDark}
+          {expandedScheduleId === sched.id && (
+            <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              <input
+                type="text"
+                value={sched.name}
+                onChange={(e) => {
+                  const nextSchedules = settings.focusSchedules.map((s) =>
+                    s.id === sched.id ? { ...s, name: e.target.value } : s
+                  )
+                  setSettings({ ...settings, focusSchedules: nextSchedules })
+                }}
+                placeholder="Schedule name"
+                style={{
+                  background: colors.inputBg,
+                  border: `1px solid ${colors.inputBorder}`,
+                  color: colors.text,
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  fontSize: 13,
+                  outline: "none"
+                }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="time"
+                  value={sched.startTime}
+                  onChange={(e) => {
+                    const nextSchedules = settings.focusSchedules.map((s) =>
+                      s.id === sched.id ? { ...s, startTime: e.target.value } : s
+                    )
+                    setSettings({ ...settings, focusSchedules: nextSchedules })
+                  }}
+                  style={{ flex: 1, background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
+                />
+                <input
+                  type="time"
+                  value={sched.endTime}
+                  onChange={(e) => {
+                    const nextSchedules = settings.focusSchedules.map((s) =>
+                      s.id === sched.id ? { ...s, endTime: e.target.value } : s
+                    )
+                    setSettings({ ...settings, focusSchedules: nextSchedules })
+                  }}
+                  style={{ flex: 1, background: colors.inputBg, border: `1px solid ${colors.inputBorder}`, color: colors.text, borderRadius: 8, padding: "8px 10px", fontSize: 13 }}
                 />
               </div>
-              {item.key === "hideHomepageRecommendations" && settings?.hideHomepageRecommendations && (
-                <div className="setting-row" style={{ paddingLeft: 28, marginTop: -2 }}>
-                  <div style={{ color: colors.subtext, fontSize: 12, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 10, height: 10, borderLeft: `1.5px solid ${isDark ? '#444' : '#d1d5db'}`, borderBottom: `1.5px solid ${isDark ? '#444' : '#d1d5db'}`, marginBottom: 2 }} />
-                    Redirect to Subscriptions
-                  </div>
-                  <CustomToggle
-                    checked={!!settings?.redirectToSubscriptions}
-                    onChange={() => toggleSetting("redirectToSubscriptions")}
-                    isDark={isDark}
-                    size="small"
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Search Refinements Header */}
-      <div
-        onClick={() => toggleSetting("isSearchCategoryOpen")}
-        className="category-header"
-        style={{ marginTop: 4 }}>
-        <Icons.CategoryToggle rotated={isSearchOpen} />
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.06em",
-          color: isDark ? "#cccccc" : "#555555",
-          flex: 1
-        }}>
-          Search Refinements
-        </span>
-      </div>
-
-      {isSearchOpen && (
-        <div style={{ paddingLeft: 18 }}>
-          {[
-            { key: "gridSearchMode", label: "Grid Layout for Search Results", icon: <Icons.Grid /> },
-            { key: "hidePeopleAlsoWatched", label: "Hide 'People also watched'", icon: <Icons.Search /> },
-            { key: "hidePeopleAlsoSearchFor", label: "Hide 'People also search for'", icon: <Icons.Search /> },
-            { key: "hideFromRelatedSearches", label: "Hide 'From related searches'", icon: <Icons.Search /> },
-            { key: "hideChannelsNewToYou", label: "Hide 'Channels new to you'", icon: <Icons.Search /> },
-            { key: "hideExploreMore", label: "Hide 'Explore more'", icon: <Icons.Search /> }
-          ].map((item) => (
-            <div key={item.key} className="setting-row">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-                <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}>{item.icon}</div>
-                {item.label}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
+                {["S", "M", "T", "W", "T", "F", "S"].map((dayName, idx) => {
+                  const selected = sched.days.includes(idx)
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        const nextDays = selected ? sched.days.filter((d) => d !== idx) : [...sched.days, idx]
+                        const nextSchedules = settings.focusSchedules.map((s) =>
+                          s.id === sched.id ? { ...s, days: nextDays } : s
+                        )
+                        setSettings({ ...settings, focusSchedules: nextSchedules })
+                      }}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 8,
+                        border: selected ? "none" : `1px solid ${colors.inputBorder}`,
+                        background: selected ? colors.accent : "transparent",
+                        color: selected ? "#fff" : colors.text,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}>
+                      {dayName}
+                    </button>
+                  )
+                })}
               </div>
-              <CustomToggle
-                checked={!!settings?.[item.key as keyof Settings]}
-                onChange={() => toggleSetting(item.key as keyof Settings)}
-                isDark={isDark}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Audio & Video Enhancements Header */}
-      <div
-        onClick={() => toggleSetting("isAudioCategoryOpen")}
-        className="category-header"
-        style={{ marginTop: 4 }}>
-        <Icons.CategoryToggle rotated={isAudioOpen} />
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.06em",
-          color: isDark ? "#cccccc" : "#555555",
-          flex: 1
-        }}>
-          Audio Enhancements
-        </span>
-      </div>
-
-      {isAudioOpen && (
-        <div style={{ paddingLeft: 18 }}>
-          {/* Vocal Boost Toggle */}
-          <div className="setting-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-              <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}><Icons.Mic /></div>
-              Vocal Boost
-              <div className="tooltip-container" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <Icons.Info />
-                <span className="tooltip-text">
-                  Emphasizes human speech frequencies (250Hz - 4kHz) and cuts low-end rumble. Great for podcasts, tutorials, and lectures.
-                </span>
-              </div>
-            </div>
-            <CustomToggle
-              checked={!!settings?.audioVocalBoost}
-              onChange={() => toggleSetting("audioVocalBoost")}
-              isDark={isDark}
-            />
-          </div>
-
-          {/* Volume Booster Slider */}
-          <div className="setting-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6, padding: "8px 4px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-                <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}><Icons.Volume /></div>
-                Volume Booster
-              </div>
-              <span style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: settings?.audioVolumeBoost && settings.audioVolumeBoost > 100 ? "#cc0000" : colors.subtext,
-                transition: "color 0.2s"
-              }}>
-                {settings?.audioVolumeBoost ?? 100}%
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "2px 0" }}>
-              <input
-                type="range"
-                min="100"
-                max="300"
-                step="10"
-                value={settings?.audioVolumeBoost ?? 100}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  setSettings({ ...(settings || defaultSettings), audioVolumeBoost: val });
-                }}
-                style={{
-                  flex: 1,
-                  height: 4,
-                  borderRadius: 2,
-                  outline: "none",
-                  WebkitAppearance: "none",
-                  background: isDark ? "#333333" : "#e5e7eb",
-                  cursor: "pointer",
-                  transition: "background 0.2s"
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Focus & Mindfulness Header */}
-      <div
-        onClick={() => toggleSetting("isFocusCategoryOpen")}
-        className="category-header"
-        style={{ marginTop: 4 }}>
-        <Icons.CategoryToggle rotated={isFocusOpen} />
-        <span style={{
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.06em",
-          color: isDark ? "#cccccc" : "#555555",
-          flex: 1
-        }}>
-          Focus & Mindfulness
-        </span>
-      </div>
-
-      {isFocusOpen && (
-        <div style={{ paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
-          {/* Are You Sure Toggle */}
-          <div className="setting-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-              <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}>🧠</div>
-              "Are You Sure?" Friction
-              <div className="tooltip-container" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <Icons.Info />
-                <span className="tooltip-text">
-                  Prompts you to state your focus goal when opening YouTube, keeping it visible as a floating badge on screen.
-                </span>
-              </div>
-            </div>
-            <CustomToggle
-              checked={!!settings?.enableFrictionScreen}
-              onChange={() => toggleSetting("enableFrictionScreen")}
-              isDark={isDark}
-            />
-          </div>
-
-          {/* Focus Schedules Toggle */}
-          <div className="setting-row">
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: colors.text, fontSize: 13, fontWeight: 500 }}>
-              <div style={{ opacity: 0.7, display: "flex", alignItems: "center" }}><Icons.Moon /></div>
-              Focus Schedules
-              <div className="tooltip-container" style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
-                <Icons.Info />
-                <span className="tooltip-text">
-                  Blocks access to YouTube completely during designated days and time intervals (e.g. Bedtime schedules).
-                </span>
-              </div>
-            </div>
-            <CustomToggle
-              checked={!!settings?.enableFocusBlocker}
-              onChange={() => toggleSetting("enableFocusBlocker")}
-              isDark={isDark}
-            />
-          </div>
-
-          {/* Focus Schedules list */}
-          {settings?.enableFocusBlocker && (
-            <div style={{ marginTop: 4, display: "flex", flexDirection: "column" }}>
-              {(settings.focusSchedules || []).map((sched) => (
-                <div key={sched.id} style={{
-                  background: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.025)",
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 12,
-                  padding: "10px 12px",
-                  marginBottom: 8,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8
-                }}>
-                  {/* Header row */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <div
-                      onClick={() => setExpandedScheduleId(expandedScheduleId === sched.id ? null : sched.id)}
-                      style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, cursor: "pointer", minWidth: 0 }}
-                    >
-                      <span style={{ fontSize: 14 }}>{/bed|sleep|night/i.test(sched.name) ? "🌙" : "⏳"}</span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: colors.text }}>
-                          {sched.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: colors.subtext }}>
-                          {formatScheduleDays(sched.days)}, {formatTimeStr(sched.startTime)} - {formatTimeStr(sched.endTime)}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <CustomToggle
-                        checked={sched.enabled}
-                        onChange={() => {
-                          const nextSchedules = settings.focusSchedules.map(s =>
-                            s.id === sched.id ? { ...s, enabled: !s.enabled } : s
-                          )
-                          setSettings({ ...settings, focusSchedules: nextSchedules })
-                        }}
-                        isDark={isDark}
-                        size="small"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setExpandedScheduleId(expandedScheduleId === sched.id ? null : sched.id)}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          padding: 4,
-                          cursor: "pointer",
-                          color: colors.subtext,
-                          display: "flex",
-                          alignItems: "center"
-                        }}
-                      >
-                        <Icons.ChevronDown size={10} style={{
-                          transform: expandedScheduleId === sched.id ? "rotate(180deg)" : "none",
-                          transition: "transform 0.2s"
-                        }} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Expanded edit area */}
-                  {expandedScheduleId === sched.id && (
-                    <div style={{
-                      borderTop: `1px solid ${colors.border}`,
-                      paddingTop: 10,
-                      marginTop: 2,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10
-                    }}>
-                      {/* Name input */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: colors.label, textTransform: "uppercase", letterSpacing: "0.05em" }}>Schedule Name</span>
-                        <input
-                          type="text"
-                          value={sched.name}
-                          onChange={(e) => {
-                            const nextSchedules = settings.focusSchedules.map(s =>
-                              s.id === sched.id ? { ...s, name: e.target.value } : s
-                            )
-                            setSettings({ ...settings, focusSchedules: nextSchedules })
-                          }}
-                          style={{
-                            background: colors.inputBg,
-                            border: `1px solid ${colors.inputBorder}`,
-                            color: colors.text,
-                            borderRadius: 8,
-                            padding: "6px 10px",
-                            fontSize: 12,
-                            outline: "none"
-                          }}
-                        />
-                      </div>
-
-                      {/* Start / End times */}
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: colors.label, textTransform: "uppercase", letterSpacing: "0.05em" }}>Start Time</span>
-                          <input
-                            type="time"
-                            value={sched.startTime}
-                            onChange={(e) => {
-                              const nextSchedules = settings.focusSchedules.map(s =>
-                                s.id === sched.id ? { ...s, startTime: e.target.value } : s
-                              )
-                              setSettings({ ...settings, focusSchedules: nextSchedules })
-                            }}
-                            style={{
-                              background: colors.inputBg,
-                              border: `1px solid ${colors.inputBorder}`,
-                              color: colors.text,
-                              borderRadius: 8,
-                              padding: "6px 8px",
-                              fontSize: 12,
-                              outline: "none",
-                              width: "100%",
-                              boxSizing: "border-box"
-                            }}
-                          />
-                        </div>
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: colors.label, textTransform: "uppercase", letterSpacing: "0.05em" }}>End Time</span>
-                          <input
-                            type="time"
-                            value={sched.endTime}
-                            onChange={(e) => {
-                              const nextSchedules = settings.focusSchedules.map(s =>
-                                s.id === sched.id ? { ...s, endTime: e.target.value } : s
-                              )
-                              setSettings({ ...settings, focusSchedules: nextSchedules })
-                            }}
-                            style={{
-                              background: colors.inputBg,
-                              border: `1px solid ${colors.inputBorder}`,
-                              color: colors.text,
-                              borderRadius: 8,
-                              padding: "6px 8px",
-                              fontSize: 12,
-                              outline: "none",
-                              width: "100%",
-                              boxSizing: "border-box"
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Days row */}
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: colors.label, textTransform: "uppercase", letterSpacing: "0.05em" }}>Active Days</span>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
-                          {["S", "M", "T", "W", "T", "F", "S"].map((dayName, idx) => {
-                            const isDaySelected = sched.days.includes(idx)
-                            return (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => {
-                                  let nextDays
-                                  if (isDaySelected) {
-                                    nextDays = sched.days.filter(d => d !== idx)
-                                  } else {
-                                    nextDays = [...sched.days, idx]
-                                  }
-                                  const nextSchedules = settings.focusSchedules.map(s =>
-                                    s.id === sched.id ? { ...s, days: nextDays } : s
-                                  )
-                                  setSettings({ ...settings, focusSchedules: nextSchedules })
-                                }}
-                                style={{
-                                  width: 26,
-                                  height: 26,
-                                  borderRadius: "50%",
-                                  border: isDaySelected ? "none" : `1px solid ${colors.inputBorder}`,
-                                  background: isDaySelected ? "#cc0000" : "transparent",
-                                  color: isDaySelected ? "#ffffff" : colors.text,
-                                  fontSize: 10,
-                                  fontWeight: 700,
-                                  cursor: "pointer",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  transition: "all 0.15s"
-                                }}
-                              >
-                                {dayName}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Edit control buttons */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextSchedules = settings.focusSchedules.filter(s => s.id !== sched.id)
-                            setSettings({ ...settings, focusSchedules: nextSchedules })
-                            setExpandedScheduleId(null)
-                          }}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "#ef4444",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            transition: "background-color 0.15s"
-                          }}
-                          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.08)"; }}
-                          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                        >
-                          🗑️ Delete Schedule
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedScheduleId(null)}
-                          style={{
-                            background: isDark ? "#2a2a2a" : "#f3f4f6",
-                            border: `1px solid ${colors.border}`,
-                            color: colors.text,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            padding: "4px 10px",
-                            borderRadius: 6
-                          }}
-                        >
-                          Close
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Add schedule button */}
               <button
                 type="button"
                 onClick={() => {
-                  const newId = "sched-" + Date.now()
-                  const newSched = {
-                    id: newId,
-                    name: "Focus Hours",
-                    enabled: true,
-                    startTime: "09:00",
-                    endTime: "17:00",
-                    days: [1, 2, 3, 4, 5]
-                  }
-                  const nextSchedules = [...(settings.focusSchedules || []), newSched]
-                  setSettings({ ...settings, focusSchedules: nextSchedules })
-                  setExpandedScheduleId(newId)
+                  setSettings({ ...settings, focusSchedules: settings.focusSchedules.filter((s) => s.id !== sched.id) })
+                  setExpandedScheduleId(null)
                 }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: 12,
-                  border: `1px dashed ${colors.border}`,
-                  background: "transparent",
-                  color: colors.text,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "background-color 0.15s, border-color 0.15s",
-                  marginTop: 4
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.backgroundColor = isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)"; e.currentTarget.style.borderColor = colors.text; }}
-                onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.borderColor = colors.border; }}
-              >
-                <Icons.Plus /> Add Focus Schedule
+                style={{ background: "none", border: "none", color: colors.danger, fontSize: 12, fontWeight: 600, cursor: "pointer", alignSelf: "flex-start", padding: 0 }}>
+                Delete schedule
               </button>
             </div>
           )}
         </div>
-      )}
+      ))}
+      <button
+        type="button"
+        onClick={() => {
+          const newId = `sched-${Date.now()}`
+          const newSched = {
+            id: newId,
+            name: "Focus Hours",
+            enabled: true,
+            startTime: "09:00",
+            endTime: "17:00",
+            days: [1, 2, 3, 4, 5]
+          }
+          setSettings({ ...settings, focusSchedules: [...(settings.focusSchedules || []), newSched] })
+          setExpandedScheduleId(newId)
+        }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          padding: 12,
+          borderRadius: 8,
+          border: `1px dashed ${colors.border}`,
+          background: "transparent",
+          color: colors.subtext,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+          transition: "color 0.15s ease"
+        }}>
+        <Icons.Plus /> Add schedule
+      </button>
+    </div>
+  )
+}
+
+export function MainDashboard({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
+  const { settings, toggleSetting, setSettings } = useSettings()
+  const [expandedScheduleId, setExpandedScheduleId] = useState<string | null>(null)
+  const [activePreset, setActivePreset] = useState<string | null>(null)
+  const [presetSnapshots, setPresetSnapshots] = useState<Record<string, Partial<Settings>>>({})
+
+  const savedVolume = settings?.audioVolumeBoost ?? defaultSettings.audioVolumeBoost
+  const [draftVolume, setDraftVolume] = useState(savedVolume)
+  const [volumeSaveState, setVolumeSaveState] = useState<"idle" | "saved">("idle")
+  const [lastSavedVolume, setLastSavedVolume] = useState(savedVolume)
+
+  useEffect(() => {
+    setDraftVolume(savedVolume)
+  }, [savedVolume])
+
+  const isVolumeDirty = draftVolume !== savedVolume
+
+  useEffect(() => {
+    if (!isVolumeDirty) return
+    const timer = window.setTimeout(() => {
+      setSettings({ audioVolumeBoost: draftVolume })
+      setLastSavedVolume(draftVolume)
+      setVolumeSaveState("saved")
+      window.setTimeout(() => setVolumeSaveState("idle"), 2200)
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [draftVolume, isVolumeDirty, setSettings])
+
+  const saveVolume = () => {
+    if (!isVolumeDirty) return
+    setSettings({ ...(settings || defaultSettings), audioVolumeBoost: draftVolume })
+    setLastSavedVolume(draftVolume)
+    setVolumeSaveState("saved")
+    window.setTimeout(() => setVolumeSaveState("idle"), 2200)
+  }
+
+  const handleToggleSetting = (key: keyof Settings) => {
+    setActivePreset(null)
+    toggleSetting(key)
+  }
+
+  const distractionKeys = DISTRACTION_BLOCKS.map((b) => b.key)
+  const searchKeys = SEARCH_BLOCKS.map((b) => b.key)
+
+  const togglePreset = (presetId: string) => {
+    const preset = PRESETS.find((p) => p.id === presetId)
+    if (!preset) return
+
+    let current: Settings = { ...(settings || defaultSettings) }
+
+    if (activePreset === presetId) {
+      const snapshot = presetSnapshots[presetId]
+      if (snapshot) {
+        setSettings({ ...current, ...snapshot })
+      }
+      setActivePreset(null)
+      return
+    }
+
+    if (activePreset) {
+      const previousSnapshot = presetSnapshots[activePreset]
+      if (previousSnapshot) {
+        current = { ...current, ...previousSnapshot }
+      }
+    }
+
+    const snapshot: Partial<Settings> = {}
+    for (const key of Object.keys(preset.patch) as (keyof Settings)[]) {
+      snapshot[key] = current[key]
+    }
+
+    setPresetSnapshots((prev) => ({ ...prev, [presetId]: snapshot }))
+    setActivePreset(presetId)
+    setSettings({ ...current, ...preset.patch })
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, letterSpacing: "0.04em", marginBottom: 10 }}>
+          Quick presets
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {PRESETS.map((preset) => {
+            const isActive = activePreset === preset.id
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => togglePreset(preset.id)}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: `1px solid ${isActive ? colors.accent : colors.border}`,
+                  background: isActive ? colors.accentSoft : colors.cardBg,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  transition: "all 0.2s ease",
+                  boxShadow: isActive ? "none" : colors.shadowSm
+                }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>{preset.label}</div>
+                <div style={{ fontSize: 12, color: colors.muted, marginTop: 3 }}>{preset.description}</div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <BlockSection
+        title="Distraction Shields"
+        subtitle="Tap a tile to block that part of YouTube"
+        activeCount={countActive(distractionKeys, settings)}
+        totalCount={distractionKeys.length}
+        colors={colors}>
+        <MasonryGrid>
+          {DISTRACTION_BLOCKS.map((block) => {
+            const isHomeFeed = block.key === "hideHomepageRecommendations"
+            const homeFeedActive = !!settings?.hideHomepageRecommendations
+
+            return (
+              <MasonryTile
+                key={block.key}
+                label={block.label}
+                description={block.description}
+                icon={block.icon}
+                active={!!settings?.[block.key]}
+                onClick={() => handleToggleSetting(block.key)}
+                colors={colors}
+                isDark={isDark}
+                variant="shield"
+                size={block.size}
+                expanded={homeFeedActive}
+                expandHeight={96}
+                embeddedExpand={
+                  isHomeFeed ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 10,
+                        width: "100%"
+                      }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: colors.text, lineHeight: 1.3 }}>
+                          Redirect to Subscriptions
+                        </div>
+                        <div style={{ fontSize: 11, color: colors.muted, marginTop: 3, lineHeight: 1.35 }}>
+                          Open Subscriptions instead of home
+                        </div>
+                      </div>
+                      <CustomToggle
+                        checked={!!settings?.redirectToSubscriptions}
+                        onChange={() => handleToggleSetting("redirectToSubscriptions")}
+                        isDark={isDark}
+                        colors={colors}
+                        size="small"
+                      />
+                    </div>
+                  ) : undefined
+                }
+              />
+            )
+          })}
+        </MasonryGrid>
+      </BlockSection>
+
+      <div
+        style={{
+          background: isDark
+            ? "linear-gradient(160deg, rgba(42,36,68,0.45) 0%, rgba(28,28,32,0.95) 100%)"
+            : "linear-gradient(160deg, rgba(230,224,255,0.55) 0%, #ffffff 100%)",
+          border: `1px solid ${isDark ? "rgba(139,164,255,0.2)" : "rgba(90,110,200,0.18)"}`,
+          borderRadius: 12,
+          padding: 18,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          boxShadow: colors.shadowSm
+        }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: colors.text }}>Search Cleanup</div>
+            <div style={{ fontSize: 13, color: colors.muted, marginTop: 3 }}>Strip shelves and clutter from results</div>
+          </div>
+          <div
+            style={{
+              padding: "5px 12px",
+              borderRadius: 6,
+              background: countActive(searchKeys, settings) > 0 ? "rgba(107,138,253,0.18)" : colors.tabBg,
+              fontSize: 12,
+              fontWeight: 600,
+              color: countActive(searchKeys, settings) > 0 ? (isDark ? "#8ba4ff" : "#4f6fe8") : colors.muted,
+              flexShrink: 0
+            }}>
+            {countActive(searchKeys, settings)}/{searchKeys.length}
+          </div>
+        </div>
+        <MasonryGrid>
+          {SEARCH_BLOCKS.map((block) => (
+            <MasonryTile
+              key={block.key}
+              label={block.label}
+              description={block.description}
+              icon={block.icon}
+              active={!!settings?.[block.key]}
+              onClick={() => handleToggleSetting(block.key)}
+              colors={colors}
+              isDark={isDark}
+              variant="search"
+              size={block.size}
+            />
+          ))}
+        </MasonryGrid>
+      </div>
+
+      <BlockSection
+        title="Audio Boost"
+        subtitle="Enhance speech and volume"
+        activeCount={(settings?.audioVocalBoost ? 1 : 0) + (settings?.audioVolumeBoost && settings.audioVolumeBoost > 100 ? 1 : 0)}
+        totalCount={2}
+        colors={colors}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 14px",
+            borderRadius: 10,
+            background: colors.tabBg,
+            border: `1px solid ${colors.border}`
+          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ color: colors.subtext, display: "flex" }}><Icons.Mic /></div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>Vocal Boost</div>
+              <div style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>Clearer voices & lectures</div>
+            </div>
+          </div>
+          <CustomToggle
+            checked={!!settings?.audioVocalBoost}
+            onChange={() => handleToggleSetting("audioVocalBoost")}
+            isDark={isDark}
+            colors={colors}
+            size="small"
+          />
+        </div>
+        <div
+          style={{
+            padding: "14px",
+            borderRadius: 12,
+            background: colors.tabBg,
+            border: `1px solid ${colors.border}`
+          }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Icons.Volume />
+              <span style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>Volume Booster</span>
+            </div>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 700,
+                color: draftVolume > 100 ? colors.accent : colors.subtext
+              }}>
+              {draftVolume}%
+              {isVolumeDirty ? " *" : ""}
+            </span>
+          </div>
+          <WaveRangeSlider
+            min={100}
+            max={300}
+            step={10}
+            value={draftVolume}
+            onChange={setDraftVolume}
+            colors={colors}
+            isDark={isDark}
+          />
+          {isVolumeDirty && volumeSaveState !== "saved" && (
+            <div style={{ fontSize: 12, color: colors.accent, fontWeight: 500, marginTop: 10 }}>
+              Unsaved — save to apply on YouTube
+            </div>
+          )}
+          {volumeSaveState === "saved" && (
+            <div
+              style={{
+                fontSize: 12,
+                color: colors.success,
+                fontWeight: 600,
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}>
+              <Icons.Check size={12} color={colors.success} />
+              Volume saved at {lastSavedVolume}%
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={saveVolume}
+            disabled={!isVolumeDirty && volumeSaveState !== "saved"}
+            style={{
+              width: "100%",
+              marginTop: 12,
+              padding: "10px 0",
+              background: volumeSaveState === "saved" ? colors.success : isVolumeDirty ? colors.accent : colors.tabBg,
+              color: volumeSaveState === "saved" || isVolumeDirty ? "#fff" : colors.muted,
+              border: `1px solid ${isVolumeDirty || volumeSaveState === "saved" ? "transparent" : colors.border}`,
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: isVolumeDirty || volumeSaveState === "saved" ? "pointer" : "default"
+            }}>
+            {volumeSaveState === "saved" ? "Saved" : isVolumeDirty ? "Save volume" : "No changes"}
+          </button>
+        </div>
+      </BlockSection>
+
+      <BlockSection
+        title="Focus & Mindfulness"
+        subtitle="Friction prompts and scheduled blocks"
+        activeCount={(settings?.enableFrictionScreen ? 1 : 0) + (settings?.enableFocusBlocker ? 1 : 0)}
+        totalCount={2}
+        colors={colors}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          <MasonryTile
+            label="Friction Screen"
+            description="Ask your goal before watching"
+            icon={<span style={{ fontSize: 16 }}>🧠</span>}
+            active={!!settings?.enableFrictionScreen}
+            onClick={() => handleToggleSetting("enableFrictionScreen")}
+            colors={colors}
+            isDark={isDark}
+            size="md"
+          />
+          <MasonryTile
+            label="Schedules"
+            description="Block YouTube on a timer"
+            icon={<Icons.Moon />}
+            active={!!settings?.enableFocusBlocker}
+            onClick={() => handleToggleSetting("enableFocusBlocker")}
+            colors={colors}
+            isDark={isDark}
+            size="md"
+          />
+          {settings?.enableFocusBlocker && settings && (
+            <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, paddingLeft: 2 }}>
+                Schedule settings
+              </div>
+              {renderSchedulePanel({
+                settings,
+                setSettings,
+                expandedScheduleId,
+                setExpandedScheduleId,
+                colors,
+                isDark
+              })}
+            </div>
+          )}
+        </div>
+      </BlockSection>
     </div>
   )
 }

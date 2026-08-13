@@ -1,5 +1,6 @@
 import { Storage } from "@plasmohq/storage"
 import { defaultSettings, type Settings } from "~/lib/settings"
+import { parseSettings } from "~/lib/parse-settings"
 import { STORAGE_KEYS } from "~/lib/constants"
 
 export class SettingsService {
@@ -28,17 +29,14 @@ export class SettingsService {
 
   private async load(): Promise<void> {
     const stored = await this.storage.get<Partial<Settings>>(STORAGE_KEYS.SETTINGS)
-    this.cache = {
-      ...defaultSettings,
-      ...(stored || {})
-    }
+    this.cache = parseSettings(stored)
   }
 
   private watch(): void {
     this.storage.watch({
       [STORAGE_KEYS.SETTINGS]: (chg) => {
-        const prev = { ...defaultSettings, ...((chg?.oldValue as Partial<Settings>) || {}) }
-        const next = { ...defaultSettings, ...((chg?.newValue as Partial<Settings>) || {}) }
+        const prev = parseSettings(chg?.oldValue)
+        const next = parseSettings(chg?.newValue)
         this.cache = next
         this.listeners.forEach(l => l(next, prev))
       }
@@ -50,9 +48,6 @@ export class SettingsService {
   }
 
   public async updateSettings(next: Partial<Settings>): Promise<void> {
-    await this.storage.set(STORAGE_KEYS.SETTINGS, {
-      ...this.cache,
-      ...next
-    })
+    await this.storage.set(STORAGE_KEYS.SETTINGS, parseSettings({ ...this.cache, ...next }))
   }
 }

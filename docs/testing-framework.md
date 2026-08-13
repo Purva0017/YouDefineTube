@@ -6,14 +6,23 @@ Testing setup and recommendations. Updated for new modules.
 
 ## Current State
 
-**No formal testing framework configured.**
+**Vitest** is configured (`pnpm test`). Test files live under `tests/`.
 
 | Aspect | Status |
 |--------|--------|
-| Test runner | Not installed |
-| Test files | None (`test.ts` is ad-hoc only) |
-| CI test step | None |
-| `zod` validation | Dependency added, not implemented |
+| Test runner | Vitest 3.x + jsdom |
+| Test files | `tests/lib/*`, `tests/core/*`, `tests/components/*` |
+| CI test step | Not configured |
+| `zod` validation | `lib/parse-settings.ts` — used on settings load (popup, background, content) |
+
+### Running tests (low-memory machines)
+
+Full suite may OOM on Windows. Run targeted files or limit workers:
+
+```bash
+NODE_OPTIONS="--max-old-space-size=8192" pnpm vitest run --maxWorkers=1
+NODE_OPTIONS="--max-old-space-size=8192" pnpm vitest run tests/lib/parse-settings.test.ts tests/core/NavigationManager.test.ts
+```
 
 ---
 

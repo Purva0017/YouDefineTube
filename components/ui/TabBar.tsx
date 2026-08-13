@@ -26,11 +26,9 @@ export function TabBar({
         display: "flex",
         gap: 4,
         padding: 4,
-        margin: "0 16px",
         background: colors.tabBg,
-        borderRadius: 14,
-        border: `1px solid ${colors.border}`,
-        flexShrink: 0
+        borderRadius: 10,
+        border: `1px solid ${colors.border}`
       }}>
       {TABS.map((tab) => {
         const isActive = active === tab.id
@@ -46,18 +44,18 @@ export function TabBar({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              padding: "10px 8px",
+              padding: "10px 6px",
               border: "none",
-              borderRadius: 10,
+              borderRadius: 8,
               background: isActive ? colors.tabActive : "transparent",
-              color: isActive ? colors.text : colors.subtext,
-              fontWeight: isActive ? 700 : 600,
-              fontSize: 12,
+              color: isActive ? colors.text : colors.muted,
+              fontWeight: isActive ? 600 : 500,
+              fontSize: 14,
               cursor: "pointer",
-              boxShadow: isActive ? (isDark ? "0 1px 0 rgba(255,255,255,0.06)" : "0 2px 8px rgba(0,0,0,0.06)") : "none",
-              transition: "all 0.18s ease"
+              boxShadow: isActive ? colors.shadowSm : "none",
+              transition: "all 0.2s ease"
             }}>
-            <Icon size={15} />
+            <Icon size={16} />
             {tab.label}
           </button>
         )

@@ -48,81 +48,40 @@ export function ExtensionApp({ onClose }: ExtensionAppProps) {
           background: ${colors.bg};
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
           -webkit-font-smoothing: antialiased;
+          line-height: 1.5;
+          letter-spacing: -0.01em;
+          font-size: 14px;
         }
         .ydt-extension-app * { box-sizing: border-box; }
-        .ydt-extension-app ::-webkit-scrollbar { width: 6px; }
+        .ydt-scroll-area {
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        .ydt-extension-app ::-webkit-scrollbar { width: 4px; }
         .ydt-extension-app ::-webkit-scrollbar-thumb {
-          background: ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)"};
+          background: ${isDark ? "rgba(255,245,230,0.10)" : "rgba(44,37,32,0.10)"};
           border-radius: 99px;
         }
-        .ydt-extension-app .category-header {
-          padding: 8px 6px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          user-select: none;
-          border-radius: 10px;
-          transition: background 0.15s ease;
-        }
-        .ydt-extension-app .category-header:hover {
-          background: ${colors.cardHover};
-        }
-        .ydt-extension-app .setting-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 8px 6px;
-          border-radius: 10px;
-          transition: background 0.15s ease;
-        }
-        .ydt-extension-app .setting-row:hover {
-          background: ${colors.cardHover};
-        }
-        .ydt-extension-app input[type="range"] { accent-color: ${colors.accent}; }
-        .ydt-extension-app input[type="range"]::-webkit-slider-thumb {
+        .ydt-extension-app ::-webkit-scrollbar-track { background: transparent; }
+        .ydt-extension-app input[type="range"]:not(.ydt-wave-slider) {
           -webkit-appearance: none;
-          width: 14px;
-          height: 14px;
+          appearance: none;
+          height: 6px;
+          background: ${isDark ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.1)"};
+          border-radius: 99px;
+          outline: none;
+        }
+        .ydt-extension-app input[type="range"]:not(.ydt-wave-slider)::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 18px;
+          height: 18px;
           border-radius: 50%;
-          background: ${colors.accent};
+          background: ${isDark ? "#f4f0ff" : "#ffffff"};
           cursor: pointer;
-          box-shadow: 0 2px 8px ${colors.accentSoft};
-        }
-        .ydt-extension-app .tooltip-container {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          cursor: pointer;
-          color: ${colors.label};
-          opacity: 0.7;
-        }
-        .ydt-extension-app .tooltip-container:hover { opacity: 1; color: ${colors.text}; }
-        .ydt-extension-app .tooltip-text {
-          visibility: hidden;
-          width: 220px;
-          background: ${colors.cardBg};
-          color: ${colors.text};
-          border-radius: 10px;
-          padding: 10px 12px;
-          position: absolute;
-          z-index: 999;
-          bottom: 130%;
-          left: 50%;
-          transform: translateX(-50%);
-          opacity: 0;
-          transition: opacity 0.2s ease, transform 0.2s ease;
-          box-shadow: ${colors.shadow};
-          border: 1px solid ${colors.borderStrong};
-          font-size: 11px;
-          line-height: 1.45;
-          font-weight: 500;
-          pointer-events: none;
-        }
-        .ydt-extension-app .tooltip-container:hover .tooltip-text {
-          visibility: visible;
-          opacity: 1;
-          transform: translateX(-50%) translateY(-2px);
+          border: 2px solid ${colors.accent};
+          box-shadow: 0 2px 8px rgba(0,0,0,0.25);
         }
       `}</style>
 
@@ -146,13 +105,13 @@ export function ExtensionApp({ onClose }: ExtensionAppProps) {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
           {activeView === "support" && (
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+            <div className="ydt-scroll-area" style={{ flex: 1, padding: 20 }}>
               <SupportView colors={colors} isDark={isDark} />
             </div>
           )}
 
           {activeView === "donate" && (
-            <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+            <div className="ydt-scroll-area" style={{ flex: 1, padding: 20 }}>
               <DonateView colors={colors} isDark={isDark} />
             </div>
           )}
@@ -163,31 +122,37 @@ export function ExtensionApp({ onClose }: ExtensionAppProps) {
                 <PowerOffView colors={colors} isDark={isDark} />
               ) : (
                 <>
-                  <div style={{ padding: "14px 0 12px", flexShrink: 0 }}>
+                  <div style={{ padding: "12px 20px 8px", flexShrink: 0 }}>
                     <TabBar active={mainTab} onChange={setMainTab} colors={colors} isDark={isDark} />
                   </div>
 
-                  <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 16px", minHeight: 0 }}>
+                  <div className="ydt-scroll-area" style={{ flex: 1, padding: "4px 20px 20px", minHeight: 0 }}>
                     {mainTab === "stats" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <TimerCard colors={colors} isDark={isDark} />
                         <DailyLimitCard colors={colors} isDark={isDark} />
                         <div
                           style={{
-                            padding: "12px 14px",
-                            background: colors.accentSoft,
+                            padding: "14px 16px",
+                            background: colors.cardBg,
                             border: `1px solid ${colors.border}`,
-                            borderRadius: 12,
-                            textAlign: "center",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: colors.subtext
+                            borderRadius: 8,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between"
                           }}>
-                          Extensions used today:{" "}
-                          <span style={{ color: colors.accent, fontWeight: 800 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, letterSpacing: "0.03em" }}>
+                              Time extensions today
+                            </div>
+                            <div style={{ fontSize: 11, color: colors.subtext, marginTop: 2 }}>
+                              +5 minutes each
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: colors.text, letterSpacing: "-0.02em" }}>
                             {todayUsage?.extensionsUsed || 0}
-                          </span>{" "}
-                          / 2
+                            <span style={{ fontSize: 13, fontWeight: 500, color: colors.muted }}> / 2</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -202,7 +167,7 @@ export function ExtensionApp({ onClose }: ExtensionAppProps) {
           )}
         </div>
 
-        {activeView === "main" && <Footer setActiveView={setActiveView} colors={colors} />}
+        {activeView === "main" && <Footer setActiveView={setActiveView} colors={colors} isDark={isDark} />}
       </div>
     </div>
   )

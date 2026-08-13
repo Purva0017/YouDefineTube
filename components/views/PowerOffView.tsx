@@ -13,45 +13,47 @@ export function PowerOffView({ colors, isDark }: { colors: ThemeColors; isDark: 
         alignItems: "center",
         justifyContent: "center",
         flex: 1,
-        padding: "32px 28px",
+        padding: "40px 32px",
         textAlign: "center"
       }}>
       <div
         style={{
-          width: 100,
-          height: 100,
-          borderRadius: 28,
+          width: 72,
+          height: 72,
+          borderRadius: 16,
           background: colors.tabBg,
           border: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 24
+          marginBottom: 20
         }}>
-        <Icons.Power isOn={false} size={44} color={colors.danger} />
+        <Icons.Power isOn={false} size={32} color={colors.muted} />
       </div>
 
-      <h2 style={{ margin: "0 0 8px 0", fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>
+      <h2 style={{ margin: "0 0 8px 0", fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>
         Extension is paused
       </h2>
-      <p style={{ margin: "0 0 28px 0", fontSize: 14, color: colors.subtext, lineHeight: 1.6, maxWidth: 280 }}>
-        YouTube is running with default settings. Turn on YouDefineTube to block distractions and track your time.
+      <p style={{ margin: "0 0 24px 0", fontSize: 13, color: colors.subtext, lineHeight: 1.6, maxWidth: 260 }}>
+        YouTube is running with defaults. Turn on YouDefineTube to block distractions and track your time.
       </p>
 
       <button
         type="button"
         onClick={() => toggleSetting("isExtensionEnabled")}
         style={{
-          padding: "14px 28px",
-          borderRadius: 14,
-          background: colors.accentGradient,
+          padding: "12px 24px",
+          borderRadius: 8,
+          background: colors.accent,
           border: "none",
           color: "#fff",
-          fontSize: 14,
-          fontWeight: 700,
+          fontSize: 13,
+          fontWeight: 600,
           cursor: "pointer",
-          boxShadow: `0 10px 24px ${colors.accentSoft}`
-        }}>
+          transition: "background 0.15s ease"
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = colors.accentHover }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = colors.accent }}>
         Turn on YouDefineTube
       </button>
     </div>

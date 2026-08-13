@@ -5,40 +5,36 @@ const NavButton = ({
   label,
   onClick,
   showExternalIcon = false,
-  colors
+  colors,
+  isDark
 }: {
   label: string
   onClick: () => void
   showExternalIcon?: boolean
   colors: ThemeColors
+  isDark: boolean
 }) => (
   <button
     type="button"
     onClick={onClick}
     style={{
       flex: 1,
-      padding: "12px 8px",
+      padding: "12px 6px",
       background: "none",
       border: "none",
-      color: colors.subtext,
-      fontSize: 11,
-      fontWeight: 600,
+      color: colors.muted,
+      fontSize: 13,
+      fontWeight: 500,
       cursor: "pointer",
-      transition: "color 0.15s, background 0.15s",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
-      borderRadius: 8
+      borderRadius: 6,
+      transition: "color 0.15s ease"
     }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.color = colors.text
-      e.currentTarget.style.background = colors.tabBg
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.color = colors.subtext
-      e.currentTarget.style.background = "transparent"
-    }}>
+    onMouseEnter={(e) => { e.currentTarget.style.color = colors.text }}
+    onMouseLeave={(e) => { e.currentTarget.style.color = colors.muted }}>
     {label}
     {showExternalIcon && <Icons.External />}
   </button>
@@ -46,27 +42,31 @@ const NavButton = ({
 
 export function Footer({
   setActiveView,
-  colors
+  colors,
+  isDark
 }: {
   setActiveView: (view: "main" | "support" | "donate") => void
   colors: ThemeColors
+  isDark: boolean
 }) {
   return (
     <div
       style={{
         display: "flex",
         borderTop: `1px solid ${colors.border}`,
-        background: colors.bgElevated,
-        flexShrink: 0
+        padding: "4px 12px",
+        flexShrink: 0,
+        background: colors.bgElevated
       }}>
-      <NavButton label="Support" onClick={() => setActiveView("donate")} colors={colors} />
+      <NavButton label="Support" onClick={() => setActiveView("donate")} colors={colors} isDark={isDark} />
       <NavButton
         label="Feature Request"
         onClick={() => window.open("https://forms.gle/uexgYsXNMYVr8Fs48", "_blank")}
         showExternalIcon
         colors={colors}
+        isDark={isDark}
       />
-      <NavButton label="Report Issue" onClick={() => setActiveView("support")} colors={colors} />
+      <NavButton label="Report Issue" onClick={() => setActiveView("support")} colors={colors} isDark={isDark} />
     </div>
   )
 }

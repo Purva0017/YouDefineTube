@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useStorage } from "@plasmohq/storage/hook"
 import { useSettings } from "~/hooks/useSettings"
 import { STORAGE_KEYS } from "~/lib/constants"
@@ -63,9 +63,22 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
 
   const [inputLimitHours, setInputLimitHours] = useState<number | string>("")
   const [inputLimitMinutes, setInputLimitMinutes] = useState<number | string>("")
+  const [saveState, setSaveState] = useState<"idle" | "saved">("idle")
+  const [savedLimitLabel, setSavedLimitLabel] = useState("")
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveFlashRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const savedTotalMinutes = settings?.dailyLimitMinutes ?? defaultSettings.dailyLimitMinutes
+
+  const draftTotalMinutes = useMemo(() => {
+    const h = Number.parseInt(String(inputLimitHours), 10) || 0
+    const m = Number.parseInt(String(inputLimitMinutes), 10) || 0
+    return h * 60 + m
+  }, [inputLimitHours, inputLimitMinutes])
+
+  const isDirty = draftTotalMinutes > 0 && draftTotalMinutes !== savedTotalMinutes
 
   const startRepeat = (action: () => void) => {
     action()
@@ -86,34 +99,46 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
   }, [settings?.dailyLimitMinutes])
 
   const onUpdateLimit = () => {
-    const h = Number.parseInt(String(inputLimitHours), 10) || 0
-    const m = Number.parseInt(String(inputLimitMinutes), 10) || 0
-    const nextLimit = h * 60 + m
-    const finalLimit = nextLimit > 0 ? nextLimit : 1
+    if (!isDirty) return
+
+    const finalLimit = draftTotalMinutes > 0 ? draftTotalMinutes : 1
 
     const nextSettings = { ...(settings || defaultSettings), dailyLimitMinutes: finalLimit }
     setSettings(nextSettings)
 
     if (todayUsage) {
-      const nextUsage = { ...todayUsage, extensionsUsed: 0 }
+      const nextUsage = { ...todayUsage, updatedAt: Date.now() }
       const currentTotalMinutes = Math.floor((nextUsage.totalYoutubeMs || 0) / 60000)
-      const allowedLimitMinutes = finalLimit
 
-      if (currentTotalMinutes < allowedLimitMinutes) {
+      if (currentTotalMinutes < finalLimit) {
         nextUsage.dailyLimitReachedAt = null
       } else if (!nextUsage.dailyLimitReachedAt) {
         nextUsage.dailyLimitReachedAt = Date.now()
       }
       setTodayUsage(nextUsage)
     }
+
+    setSaveState("saved")
+    setSavedLimitLabel(`${Math.floor(finalLimit / 60)}h ${finalLimit % 60}m`)
+    if (saveFlashRef.current) clearTimeout(saveFlashRef.current)
+    saveFlashRef.current = setTimeout(() => setSaveState("idle"), 2200)
   }
+
+  const saveButtonLabel =
+    saveState === "saved" ? "Saved" : isDirty ? "Save daily limit" : "No changes"
+
+  const saveButtonBg =
+    saveState === "saved" ? colors.success : isDirty ? colors.accent : colors.tabBg
+
+  const saveButtonColor =
+    saveState === "saved" || isDirty ? "#fff" : colors.muted
 
   const inputWrapStyle = {
     display: "flex",
     alignItems: "center",
     background: colors.inputBg,
     border: `1px solid ${colors.inputBorder}`,
-    borderRadius: 12,
+    borderRadius: 8,
     padding: "2px 2px 2px 10px",
     flex: 1
   } as const
@@ -122,18 +147,19 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
     <div
       style={{
         background: colors.cardBg,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 12,
+        padding: 20,
         display: "flex",
         flexDirection: "column",
-        gap: 14,
-        border: `1px solid ${colors.border}`
+        gap: 16,
+        border: `1px solid ${colors.border}`,
+        boxShadow: colors.shadowSm
       }}>
       <div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, letterSpacing: "0.04em" }}>
           Daily Limit
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>Set your YouTube budget</div>
+        <div style={{ fontSize: 15, fontWeight: 600, marginTop: 4, color: colors.text }}>Set your YouTube budget</div>
       </div>
 
       <label
@@ -143,27 +169,27 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
           gap: 10,
           cursor: "pointer",
           padding: "10px 12px",
-          borderRadius: 12,
+          borderRadius: 8,
           background: colors.tabBg,
           border: `1px solid ${colors.border}`
         }}>
         <div
           onClick={() => toggleSetting("enableDailyLimitAlert")}
           style={{
-            width: 20,
-            height: 20,
-            borderRadius: 6,
-            background: settings?.enableDailyLimitAlert ? colors.accent : colors.inputBg,
+            width: 18,
+            height: 18,
+            borderRadius: 5,
+            background: settings?.enableDailyLimitAlert ? colors.accent : "transparent",
             border: `2px solid ${settings?.enableDailyLimitAlert ? colors.accent : colors.inputBorder}`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            transition: "all 0.2s",
+            transition: "all 0.2s ease",
             flexShrink: 0
           }}>
-          {settings?.enableDailyLimitAlert && <Icons.Check color="white" size={12} />}
+          {settings?.enableDailyLimitAlert && <Icons.Check color="white" size={10} />}
         </div>
-        <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: colors.text }}>
           Show alert when limit is reached
         </span>
       </label>
@@ -179,8 +205,8 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
           display: flex;
           align-items: center;
           justify-content: center;
-          opacity: 0.6;
-          border-radius: 6px;
+          opacity: 0.5;
+          border-radius: 4px;
           transition: opacity 0.15s, background 0.15s;
         }
         .spinner-btn:hover { opacity: 1; background: ${colors.tabBg}; }
@@ -233,22 +259,52 @@ export function DailyLimitCard({ colors, isDark }: { colors: ThemeColors; isDark
         </div>
       </div>
 
+      {isDirty && saveState !== "saved" && (
+        <div style={{ fontSize: 12, color: colors.accent, fontWeight: 500, marginTop: -8 }}>
+          Unsaved changes — tap Save to apply
+        </div>
+      )}
+
+      {saveState === "saved" && (
+        <div
+          style={{
+            fontSize: 12,
+            color: colors.success,
+            fontWeight: 600,
+            marginTop: -8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6
+          }}>
+          <Icons.Check size={12} color={colors.success} />
+          Daily limit saved ({savedLimitLabel})
+        </div>
+      )}
+
       <button
         type="button"
         onClick={onUpdateLimit}
+        disabled={!isDirty && saveState !== "saved"}
         style={{
           width: "100%",
-          padding: "12px 0",
-          background: colors.accentGradient,
-          color: "#fff",
-          border: "none",
-          borderRadius: 12,
-          fontSize: 13,
-          fontWeight: 700,
-          cursor: "pointer",
-          boxShadow: `0 8px 20px ${colors.accentSoft}`
+          padding: "11px 0",
+          background: saveButtonBg,
+          color: saveButtonColor,
+          border: `1px solid ${isDirty || saveState === "saved" ? "transparent" : colors.border}`,
+          borderRadius: 8,
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: isDirty || saveState === "saved" ? "pointer" : "default",
+          transition: "background 0.15s ease, color 0.15s ease",
+          opacity: !isDirty && saveState !== "saved" ? 0.85 : 1
+        }}
+        onMouseEnter={(e) => {
+          if (isDirty) e.currentTarget.style.background = colors.accentHover
+        }}
+        onMouseLeave={(e) => {
+          if (isDirty) e.currentTarget.style.background = colors.accent
         }}>
-        Save daily limit
+        {saveButtonLabel}
       </button>
     </div>
   )

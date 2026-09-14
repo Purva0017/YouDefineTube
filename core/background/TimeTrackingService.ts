@@ -1,5 +1,5 @@
 import { Storage } from "@plasmohq/storage"
-import { STORAGE_KEYS } from "~/lib/constants"
+import { STORAGE_KEYS, TIMERS } from "~/lib/constants"
 import {
   createEmptyDailyUsage,
   getLocalDateKey,
@@ -8,7 +8,6 @@ import {
   type TimeTrackingSnapshot
 } from "~/lib/time-tracking"
 import { SettingsService } from "./SettingsService"
-import { MESSAGES } from "~/lib/messaging"
 
 type LiveSession = TimeTrackingSnapshot & {
   lastTickAt: number
@@ -23,6 +22,10 @@ export class TimeTrackingService {
   private liveSessions = new Map<number, LiveSession>()
   private writeQueue = Promise.resolve()
   private settingsService = SettingsService.getInstance()
+  private persistDirty = false
+  private persistTimer: ReturnType<typeof setTimeout> | null = null
+  private lastHistoryPersistAt = 0
+  private historyDirty = false
 
   private constructor() { }
 
@@ -46,23 +49,14 @@ export class TimeTrackingService {
 
     await this.checkDateChange()
     this.setupMidnightAlarm()
+    this.watchTodayUsageStorage()
 
     this.settingsService.onSettingsChange((next, prev) => {
       void this.enqueue(async () => {
-        const todayKey = getLocalDateKey()
-        const todayUsage = this.touchUsage(todayKey)
-
-        // If limit duration changed, reset extensions for the day
-        if (prev.dailyLimitMinutes !== next.dailyLimitMinutes) {
-          if ((todayUsage.extensionsUsed || 0) > 0) {
-            todayUsage.extensionsUsed = 0
-            todayUsage.updatedAt = Date.now()
-            this.historyCache[todayKey] = todayUsage
-          }
+        if (prev.isExtensionEnabled && !next.isExtensionEnabled) {
+          this.flushAllLiveSessions()
         }
-
-        await this.maybeTriggerDailyLimitAlert()
-        await this.persist()
+        await this.flushPersist()
       })
     })
   }
@@ -87,6 +81,12 @@ export class TimeTrackingService {
 
   public async handleReport(tabId: number, snapshot: TimeTrackingSnapshot): Promise<void> {
     const now = Date.now()
+
+    if (!this.settingsService.settings.isExtensionEnabled) {
+      await this.flushAndRemoveTabSession(tabId, now)
+      return
+    }
+
     const previous = this.liveSessions.get(tabId)
 
     if (previous) {
@@ -98,8 +98,7 @@ export class TimeTrackingService {
       lastTickAt: now
     })
 
-    await this.maybeTriggerDailyLimitAlert()
-    await this.persist()
+    this.schedulePersist()
   }
 
   public async handleTabRemoved(tabId: number): Promise<void> {
@@ -109,23 +108,7 @@ export class TimeTrackingService {
     this.addDurationToHistory(session.lastTickAt, Date.now(), session)
     this.liveSessions.delete(tabId)
 
-    await this.maybeTriggerDailyLimitAlert()
-    await this.persist()
-  }
-
-  public async requestExtension(): Promise<{ ok: boolean; extensionsUsed?: number; error?: string }> {
-    const todayKey = getLocalDateKey()
-    const todayUsage = this.touchUsage(todayKey)
-    if ((todayUsage.extensionsUsed || 0) < 2) {
-      todayUsage.extensionsUsed = (todayUsage.extensionsUsed || 0) + 1
-      todayUsage.updatedAt = Date.now()
-      this.historyCache[todayKey] = todayUsage
-      await this.maybeTriggerDailyLimitAlert()
-      await this.persist()
-      return { ok: true, extensionsUsed: todayUsage.extensionsUsed }
-    } else {
-      return { ok: false, error: "No extensions left" }
-    }
+    await this.flushPersist()
   }
 
   private addDurationToHistory(startAt: number, endAt: number, snapshot: TimeTrackingSnapshot): void {
@@ -145,6 +128,7 @@ export class TimeTrackingService {
         usage[bucket] += segmentMs
       }
       usage.updatedAt = Date.now()
+      this.historyDirty = true
 
       cursor = segmentEnd
     }
@@ -170,80 +154,107 @@ export class TimeTrackingService {
     return "browseMs"
   }
 
-  private async persist(): Promise<void> {
-    const todayKey = getLocalDateKey()
-    const todayUsage = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
-
-    const storageArea = chrome.storage.session || chrome.storage.local
-
-    await Promise.all([
-      this.storage.set(STORAGE_KEYS.TIME_TRACKING_HISTORY, this.historyCache),
-      this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, todayUsage),
-      storageArea.set({ [STORAGE_KEYS.LIVE_SESSIONS]: Object.fromEntries(this.liveSessions.entries()) })
-    ])
+  private flushAllLiveSessions(now = Date.now()): void {
+    for (const [tabId, session] of this.liveSessions.entries()) {
+      this.addDurationToHistory(session.lastTickAt, now, session)
+      this.liveSessions.delete(tabId)
+    }
   }
 
-  public async maybeTriggerDailyLimitAlert(): Promise<void> {
-    const settings = this.settingsService.settings
+  private async flushAndRemoveTabSession(tabId: number, now: number): Promise<void> {
+    const session = this.liveSessions.get(tabId)
+    if (!session) return
+
+    this.addDurationToHistory(session.lastTickAt, now, session)
+    this.liveSessions.delete(tabId)
+    await this.flushPersist()
+  }
+
+  private getUnpersistedMsForDate(dateKey: string, now = Date.now()): number {
+    let total = 0
+
+    for (const session of this.liveSessions.values()) {
+      if (!this.isSnapshotActive(session)) continue
+
+      let cursor = session.lastTickAt
+      while (cursor < now) {
+        const segmentEnd = Math.min(getNextLocalMidnight(cursor), now)
+        if (getLocalDateKey(cursor) === dateKey) {
+          total += segmentEnd - cursor
+        }
+        cursor = segmentEnd
+      }
+    }
+
+    return total
+  }
+
+  private schedulePersist(): void {
+    this.persistDirty = true
+    if (this.persistTimer) return
+
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null
+      void this.enqueue(async () => {
+        await this.flushPersist()
+      })
+    }, TIMERS.PERSIST_DEBOUNCE_MS)
+  }
+
+  private async flushPersist(): Promise<void> {
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer)
+      this.persistTimer = null
+    }
+    if (!this.persistDirty && !this.historyDirty) return
+    this.persistDirty = false
+    await this.persistNow()
+  }
+
+  private async persistNow(): Promise<void> {
     const todayKey = getLocalDateKey()
-    const todayUsage = this.touchUsage(todayKey)
-
-    if (!settings.enableDailyLimitAlert || settings.dailyLimitMinutes <= 0) {
-      if (todayUsage.dailyLimitReachedAt) {
-        todayUsage.dailyLimitReachedAt = null
-        todayUsage.updatedAt = Date.now()
-        this.historyCache[todayKey] = todayUsage
-      }
-      return
-    }
-
-    const currentTotalMinutes = Math.floor((todayUsage.totalYoutubeMs || 0) / 60000)
-    const allowedLimitMinutes = (settings.dailyLimitMinutes || 0) + (todayUsage.extensionsUsed || 0) * 5
-
-    if (currentTotalMinutes < allowedLimitMinutes) {
-      if (todayUsage.dailyLimitReachedAt) {
-        todayUsage.dailyLimitReachedAt = null
-        todayUsage.updatedAt = Date.now()
-        this.historyCache[todayKey] = todayUsage
-      }
-      return
-    }
-
-    if (todayUsage.dailyLimitReachedAt) return
-
-    todayUsage.dailyLimitReachedAt = Date.now()
-    todayUsage.updatedAt = Date.now()
+    const cached = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
+    const storedToday = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
+    const todayUsage = this.mergeTodayUsage(cached, storedToday)
     this.historyCache[todayKey] = todayUsage
 
-    await chrome.notifications.create(`ydt-daily-limit-${todayKey}`, {
-      type: "basic",
-      iconUrl: chrome.runtime.getURL("assets/icon.png"),
-      title: "YouDefineTube daily limit reached",
-      message: `You've reached your ${settings.dailyLimitMinutes}-minute YouTube limit for today.`
-    })
+    const storageArea = chrome.storage.session || chrome.storage.local
+    const now = Date.now()
+    const shouldWriteHistory =
+      this.historyDirty || now - this.lastHistoryPersistAt >= TIMERS.HISTORY_PERSIST_MS
 
-    await this.broadcastDailyLimitAlert(settings.dailyLimitMinutes, todayUsage.extensionsUsed || 0)
-  }
+    const writes: Promise<void>[] = [
+      this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, todayUsage),
+      storageArea.set({ [STORAGE_KEYS.LIVE_SESSIONS]: Object.fromEntries(this.liveSessions.entries()) })
+    ]
 
-  private async broadcastDailyLimitAlert(limitMinutes: number, extensionsUsed: number): Promise<void> {
-    const tabs = await chrome.tabs.query({
-      url: ["https://www.youtube.com/*", "https://m.youtube.com/*"]
-    })
-
-    const message = {
-      type: MESSAGES.DAILY_LIMIT_REACHED,
-      payload: { limitMinutes, extensionsUsed }
+    if (shouldWriteHistory) {
+      writes.push(this.storage.set(STORAGE_KEYS.TIME_TRACKING_HISTORY, this.historyCache))
+      this.lastHistoryPersistAt = now
+      this.historyDirty = false
     }
 
-    await Promise.all(
-      tabs
-        .filter((tab) => typeof tab.id === "number")
-        .map(async (tab) => {
-          try {
-            await chrome.tabs.sendMessage(tab.id as number, message)
-          } catch { }
-        })
-    )
+    await Promise.all(writes)
+  }
+
+  private watchTodayUsageStorage(): void {
+    this.storage.watch({
+      [STORAGE_KEYS.TIME_TRACKING_TODAY]: (chg) => {
+        const next = chg?.newValue as DailyUsage | undefined
+        if (!next?.date) return
+        const usage = this.touchUsage(next.date)
+        usage.updatedAt = Math.max(usage.updatedAt || 0, next.updatedAt || 0)
+      }
+    })
+  }
+
+  private mergeTodayUsage(cached: DailyUsage, stored?: DailyUsage | null): DailyUsage {
+    if (!stored || stored.date !== cached.date) return cached
+
+    return {
+      ...cached,
+      updatedAt: Math.max(cached.updatedAt || 0, stored.updatedAt || 0)
+    }
   }
 
   public enqueue(task: () => Promise<void>): Promise<void> {

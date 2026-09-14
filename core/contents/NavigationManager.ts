@@ -2,6 +2,18 @@ import type { Settings } from "~/lib/settings"
 import { TIMERS } from "~/lib/constants"
 
 export class NavigationManager {
+  private homeRedirectAttempted = false
+  private shortsRedirectAttempted = false
+  private watchPauseInProgress = false
+  private shortsPauseInProgress = false
+
+  public onNavigation(): void {
+    this.homeRedirectAttempted = false
+    this.shortsRedirectAttempted = false
+    this.watchPauseInProgress = false
+    this.shortsPauseInProgress = false
+  }
+
   public handleRedirections(settings: Settings): void {
     if (!settings.isExtensionEnabled) return
     this.handleHomeRedirect(settings)
@@ -11,18 +23,34 @@ export class NavigationManager {
   }
 
   private handleHomeRedirect(settings: Settings): void {
-    if (settings.hideHomepageRecommendations && settings.redirectToSubscriptions && window.location.pathname === "/") {
-      window.location.replace("/feed/subscriptions")
+    if (!settings.hideHomepageRecommendations || !settings.redirectToSubscriptions) {
+      this.homeRedirectAttempted = false
+      return
     }
+
+    if (window.location.pathname !== "/") {
+      this.homeRedirectAttempted = false
+      return
+    }
+
+    if (this.homeRedirectAttempted) return
+    this.homeRedirectAttempted = true
+    window.location.replace("/feed/subscriptions")
   }
 
   private handleShortsRoute(settings: Settings): void {
-    if (!settings.hideShorts || !window.location.pathname.startsWith("/shorts")) return
+    if (!settings.hideShorts || !window.location.pathname.startsWith("/shorts")) {
+      this.shortsRedirectAttempted = false
+      return
+    }
 
     const parts = window.location.pathname.split("/").filter(Boolean)
     const id = parts[1]
 
     if (id && !new URLSearchParams(window.location.search).get("v")) {
+      if (this.shortsRedirectAttempted) return
+      this.shortsRedirectAttempted = true
+
       const url = new URL(`${window.location.origin}/watch`)
       url.searchParams.set("v", id)
       url.searchParams.set("ydt_pause", "1")
@@ -48,7 +76,9 @@ export class NavigationManager {
     if (!settings.hideShorts) return
     const sp = new URLSearchParams(window.location.search)
     if (sp.get("ydt_pause") !== "1") return
+    if (this.watchPauseInProgress) return
 
+    this.watchPauseInProgress = true
     let attempts = 0
     const tryPause = () => {
       const video = document.querySelector<HTMLVideoElement>("video")
@@ -59,9 +89,14 @@ export class NavigationManager {
         const url = new URL(window.location.href)
         url.search = sp.toString()
         history.replaceState(null, "", url.toString())
+        this.watchPauseInProgress = false
         return
       }
-      if (++attempts < TIMERS.MAX_PAUSE_ATTEMPTS) setTimeout(tryPause, TIMERS.RETRY_PAUSE)
+      if (++attempts < TIMERS.MAX_PAUSE_ATTEMPTS) {
+        setTimeout(tryPause, TIMERS.RETRY_PAUSE)
+      } else {
+        this.watchPauseInProgress = false
+      }
     }
     tryPause()
   }
@@ -70,7 +105,9 @@ export class NavigationManager {
     if (!window.location.pathname.startsWith("/shorts")) return
     const sp = new URLSearchParams(window.location.search)
     if (sp.get("ydt_pause") !== "1") return
+    if (this.shortsPauseInProgress) return
 
+    this.shortsPauseInProgress = true
     let attempts = 0
     const tryPause = () => {
       const video = document.querySelector<HTMLVideoElement>("video")
@@ -81,9 +118,14 @@ export class NavigationManager {
         const url = new URL(window.location.href)
         url.search = sp.toString()
         history.replaceState(null, "", url.toString())
+        this.shortsPauseInProgress = false
         return
       }
-      if (++attempts < TIMERS.MAX_PAUSE_ATTEMPTS) setTimeout(tryPause, TIMERS.RETRY_PAUSE)
+      if (++attempts < TIMERS.MAX_PAUSE_ATTEMPTS) {
+        setTimeout(tryPause, TIMERS.RETRY_PAUSE)
+      } else {
+        this.shortsPauseInProgress = false
+      }
     }
     tryPause()
   }

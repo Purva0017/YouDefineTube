@@ -1,10 +1,20 @@
 import { MESSAGES } from "~/lib/messaging"
 import { TIMERS } from "~/lib/constants"
 import type { TimeTrackingSnapshot, YoutubePageType } from "~/lib/time-tracking"
+import { isExtensionContextValid, safeSendMessage } from "~/lib/extension-runtime"
 
 export class TimeReporter {
   private trackedVideoEl: HTMLVideoElement | null = null
   private reportQueued = false
+  private trackingEnabled = true
+
+  private readonly onVideoPlay = () => this.queueReport()
+  private readonly onVideoPause = () => this.queueReport()
+  private readonly onVideoEnded = () => this.queueReport()
+
+  public setTrackingEnabled(enabled: boolean): void {
+    this.trackingEnabled = enabled
+  }
 
   public initialize(): void {
     this.setupListeners()
@@ -22,12 +32,14 @@ export class TimeReporter {
 
   private startHeartbeat(): void {
     setInterval(() => {
+      if (!isExtensionContextValid()) return
       this.ensureTrackedVideoListeners()
       this.sendReport()
     }, TIMERS.HEARTBEAT)
   }
 
   private tick(): void {
+    if (!isExtensionContextValid()) return
     this.ensureTrackedVideoListeners()
     setTimeout(() => this.tick(), TIMERS.TICK)
   }
@@ -42,15 +54,13 @@ export class TimeReporter {
   }
 
   private sendReport(): void {
+    if (!this.trackingEnabled || !isExtensionContextValid()) return
+
     const message = {
       type: MESSAGES.TIME_TRACKING_REPORT,
       payload: this.buildSnapshot()
     }
-    try {
-      chrome.runtime.sendMessage(message, () => {
-        void chrome.runtime.lastError
-      })
-    } catch {}
+    safeSendMessage(message)
   }
 
   private buildSnapshot(): TimeTrackingSnapshot {
@@ -82,21 +92,25 @@ export class TimeReporter {
     return null
   }
 
+  private detachVideoListeners(): void {
+    if (!this.trackedVideoEl) return
+    this.trackedVideoEl.removeEventListener("play", this.onVideoPlay)
+    this.trackedVideoEl.removeEventListener("pause", this.onVideoPause)
+    this.trackedVideoEl.removeEventListener("ended", this.onVideoEnded)
+    this.trackedVideoEl = null
+  }
+
   private ensureTrackedVideoListeners(): void {
     const video = document.querySelector<HTMLVideoElement>("video")
     if (this.trackedVideoEl === video) return
 
-    if (this.trackedVideoEl) {
-      this.trackedVideoEl.removeEventListener("play", () => this.queueReport())
-      this.trackedVideoEl.removeEventListener("pause", () => this.queueReport())
-      this.trackedVideoEl.removeEventListener("ended", () => this.queueReport())
-    }
+    this.detachVideoListeners()
 
-    this.trackedVideoEl = video
-    if (this.trackedVideoEl) {
-      this.trackedVideoEl.addEventListener("play", () => this.queueReport())
-      this.trackedVideoEl.addEventListener("pause", () => this.queueReport())
-      this.trackedVideoEl.addEventListener("ended", () => this.queueReport())
+    if (video) {
+      this.trackedVideoEl = video
+      this.trackedVideoEl.addEventListener("play", this.onVideoPlay)
+      this.trackedVideoEl.addEventListener("pause", this.onVideoPause)
+      this.trackedVideoEl.addEventListener("ended", this.onVideoEnded)
     }
   }
 }

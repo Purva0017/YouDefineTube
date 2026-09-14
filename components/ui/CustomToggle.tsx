@@ -1,40 +1,53 @@
+import type { ThemeColors } from "~/lib/theme"
+
 export function CustomToggle({
   checked,
   onChange,
   isDark,
+  colors,
   size = "medium"
 }: {
-  checked: boolean;
-  onChange: () => void;
-  isDark: boolean;
+  checked: boolean
+  onChange: () => void
+  isDark: boolean
+  colors?: ThemeColors
   size?: "small" | "medium"
 }) {
   const isSmall = size === "small"
+  const trackOff = isDark ? "#3a3a3c" : "#d1d5db"
+  const trackOn = "#cc0000"
+
   return (
-    <div
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={onChange}
       style={{
-        width: isSmall ? 32 : 44,
-        height: isSmall ? 18 : 24,
-        borderRadius: isSmall ? 9 : 12,
-        background: checked ? "#cc0000" : (isDark ? "#3f3f3f" : "#d1d5db"),
+        width: isSmall ? 36 : 44,
+        height: isSmall ? 20 : 24,
+        borderRadius: 99,
+        background: checked ? trackOn : trackOff,
         position: "relative",
         cursor: "pointer",
-        transition: "background 0.2s"
+        transition: "background 0.2s ease",
+        border: "none",
+        padding: 0,
+        flexShrink: 0
       }}>
-      <div
+      <span
         style={{
           width: isSmall ? 14 : 18,
           height: isSmall ? 14 : 18,
           borderRadius: "50%",
-          background: "white",
+          background: "#ffffff",
           position: "absolute",
-          top: isSmall ? 2 : 3,
-          left: checked ? (isSmall ? 16 : 23) : (isSmall ? 2 : 3),
-          transition: "left 0.2s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+          top: 3,
+          left: checked ? (isSmall ? 19 : 23) : 3,
+          transition: "left 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.25)"
         }}
       />
-    </div>
+    </button>
   )
 }

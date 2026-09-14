@@ -21,8 +21,6 @@ export type DailyUsage = {
   watchVideoMs: number
   browseMs: number
   searchMs: number
-  dailyLimitReachedAt: number | null
-  extensionsUsed: number
   updatedAt: number
 }
 
@@ -40,8 +38,6 @@ export const createEmptyDailyUsage = (date = getLocalDateKey()): DailyUsage => (
   watchVideoMs: 0,
   browseMs: 0,
   searchMs: 0,
-  dailyLimitReachedAt: null,
-  extensionsUsed: 0,
   updatedAt: Date.now()
 })
 

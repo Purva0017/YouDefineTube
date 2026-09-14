@@ -17,7 +17,7 @@ export class MessageHandler {
   public initialize(): void {
     chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
       this.handleMessage(message, sender, sendResponse)
-      return true // Keep channel open for async response
+      return true
     })
   }
 
@@ -30,13 +30,6 @@ export class MessageHandler {
             sendResponse({ ok: true })
           })
         }
-        break
-
-      case MESSAGES.REQUEST_EXTENSION:
-        void this.timeTrackingService.enqueue(async () => {
-          const result = await this.timeTrackingService.requestExtension()
-          sendResponse(result)
-        })
         break
 
       case MESSAGES.CLOSE_ALL_TABS:

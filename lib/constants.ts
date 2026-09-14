@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   SETTINGS: "settings",
+  BOOKMARKS: "bookmarks",
   TIME_TRACKING_HISTORY: "timeTrackingHistory",
   TIME_TRACKING_TODAY: "timeTrackingToday",
   LIVE_SESSIONS: "timeTrackingLiveSessions"
@@ -9,7 +10,11 @@ export const TIMERS = {
   HEARTBEAT: 15000,
   TICK: 600,
   RETRY_PAUSE: 200,
-  MAX_PAUSE_ATTEMPTS: 30
+  MAX_PAUSE_ATTEMPTS: 30,
+  /** Min interval between chrome.storage writes for time tracking */
+  PERSIST_DEBOUNCE_MS: 8000,
+  /** How often to flush the full history object (today + sessions write more often) */
+  HISTORY_PERSIST_MS: 45000
 }
 
 export const SELECTORS = {
@@ -81,5 +86,15 @@ export const SELECTORS = {
     'ytd-browse[page-subtype="home"] #contents',
     "ytm-browse ytm-rich-grid-renderer",
     "ytm-browse ytm-item-section-renderer"
+  ],
+  MASTHEAD_BUTTONS: [
+    "ytd-masthead #end #buttons",
+    "#masthead #end #buttons",
+    "ytd-masthead #buttons"
+  ],
+  MASTHEAD_INSERT_BEFORE: [
+    "ytd-notification-topbar-button-renderer",
+    "#notification-button",
+    "ytd-topbar-menu-button-renderer"
   ]
 }

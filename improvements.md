@@ -1,0 +1,1 @@
+1. ~~When clicked on the save limit button, it should reflect, give some outputs to user, like saved. Or auto save the changes~~ — **Done** (Daily limit + volume save feedback; volume also auto-saves after 2.5s idle)

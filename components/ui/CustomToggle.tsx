@@ -14,8 +14,8 @@ export function CustomToggle({
   size?: "small" | "medium"
 }) {
   const isSmall = size === "small"
-  const trackOff = isDark ? "#3a3530" : "#d6d0c8"
-  const trackOn = colors?.accent ?? "#e04555"
+  const trackOff = isDark ? "#3a3a3c" : "#d1d5db"
+  const trackOn = "#cc0000"
 
   return (
     <button
@@ -24,8 +24,8 @@ export function CustomToggle({
       aria-checked={checked}
       onClick={onChange}
       style={{
-        width: isSmall ? 40 : 48,
-        height: isSmall ? 22 : 26,
+        width: isSmall ? 36 : 44,
+        height: isSmall ? 20 : 24,
         borderRadius: 99,
         background: checked ? trackOn : trackOff,
         position: "relative",
@@ -37,15 +37,15 @@ export function CustomToggle({
       }}>
       <span
         style={{
-          width: isSmall ? 16 : 20,
-          height: isSmall ? 16 : 20,
+          width: isSmall ? 14 : 18,
+          height: isSmall ? 14 : 18,
           borderRadius: "50%",
-          background: "white",
+          background: "#ffffff",
           position: "absolute",
           top: 3,
-          left: checked ? (isSmall ? 21 : 25) : 3,
+          left: checked ? (isSmall ? 19 : 23) : 3,
           transition: "left 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+          boxShadow: "0 1px 3px rgba(0,0,0,0.25)"
         }}
       />
     </button>

@@ -4,24 +4,14 @@ import { formatTimeStr } from "~/lib/utils"
 import { safeSendMessage } from "~/lib/extension-runtime"
 import { OVERLAY_THEME, OVERLAY_Z } from "./overlays/overlay-theme"
 import { ensureKeyframes, pauseCurrentVideo } from "./overlays/overlay-dom"
-import { DailyLimitOverlay } from "./overlays/DailyLimitOverlay"
 import { HomepageMessageOverlay } from "./overlays/HomepageMessageOverlay"
 
 export class OverlayManager {
-  private readonly dailyLimit = new DailyLimitOverlay()
   private readonly homepage = new HomepageMessageOverlay()
   private focusBlockerEl: HTMLDivElement | null = null
   private focusBlockerScheduleKey: string | null = null
   private frictionPromptEl: HTMLDivElement | null = null
   private frictionGoalEl: HTMLDivElement | null = null
-
-  public showDailyLimitAlert(limitMinutes: number, extensionsUsed: number = 0): void {
-    this.dailyLimit.show(limitMinutes, extensionsUsed)
-  }
-
-  public removeDailyLimitAlert(): void {
-    this.dailyLimit.remove()
-  }
 
   public updateHomepageMessage(settings: Settings): void {
     this.homepage.update(settings)

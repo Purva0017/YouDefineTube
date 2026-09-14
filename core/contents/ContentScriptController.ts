@@ -3,7 +3,6 @@ import { defaultSettings, type Settings } from "~/lib/settings"
 import { parseSettings } from "~/lib/parse-settings"
 import { STORAGE_KEYS } from "~/lib/constants"
 import { MESSAGES } from "~/lib/messaging"
-import type { DailyUsage } from "~/lib/time-tracking"
 import { isFocusScheduleActive } from "~/lib/focus-blocker"
 import { isExtensionContextValid, safeSendMessage } from "~/lib/extension-runtime"
 import { resolveYouTubeVideoTitle } from "~/lib/youtube-title"
@@ -49,12 +48,7 @@ export class ContentScriptController {
       document.addEventListener("yt-navigate-finish", () => this.onNavigate())
 
       chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-        if (message?.type === MESSAGES.DAILY_LIMIT_REACHED && this.settings.isExtensionEnabled && this.settings.enableDailyLimitAlert) {
-          this.overlayManager.showDailyLimitAlert(
-            message.payload.limitMinutes,
-            message.payload.extensionsUsed || 0
-          )
-        } else if (message?.type === MESSAGES.GET_CURRENT_TIME) {
+        if (message?.type === MESSAGES.GET_CURRENT_TIME) {
           const video = document.querySelector("video")
           sendResponse({
             time: video ? video.currentTime : null,
@@ -212,19 +206,6 @@ export class ContentScriptController {
     if (document.body) {
       this.onDomReady()
     }
-
-    const todayUsage = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
-    if (
-      todayUsage?.dailyLimitReachedAt &&
-      this.settings.enableDailyLimitAlert &&
-      this.settings.isExtensionEnabled &&
-      document.body
-    ) {
-      this.overlayManager.showDailyLimitAlert(
-        this.settings.dailyLimitMinutes,
-        todayUsage.extensionsUsed || 0
-      )
-    }
   }
 
   private watchStorage(): void {
@@ -257,27 +238,6 @@ export class ContentScriptController {
           this.navigationManager.handleRevertToShortsIfApplicable()
         }
         this.navigationManager.handleRedirections(this.settings)
-
-        void this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY).then((usage) => {
-          if (!usage?.dailyLimitReachedAt || !this.settings.enableDailyLimitAlert || !this.settings.isExtensionEnabled) {
-            this.overlayManager.removeDailyLimitAlert()
-          } else if (document.body) {
-            this.overlayManager.showDailyLimitAlert(this.settings.dailyLimitMinutes, usage.extensionsUsed || 0)
-          }
-        })
-      },
-      [STORAGE_KEYS.TIME_TRACKING_TODAY]: (chg) => {
-        const todayUsage = chg?.newValue as DailyUsage | undefined
-        if (
-          todayUsage?.dailyLimitReachedAt &&
-          this.settings.enableDailyLimitAlert &&
-          this.settings.isExtensionEnabled &&
-          document.body
-        ) {
-          this.overlayManager.showDailyLimitAlert(this.settings.dailyLimitMinutes, todayUsage.extensionsUsed || 0)
-        } else {
-          this.overlayManager.removeDailyLimitAlert()
-        }
       }
     })
   }

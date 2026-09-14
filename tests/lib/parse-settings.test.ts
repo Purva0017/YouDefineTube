@@ -9,15 +9,14 @@ describe("parseSettings", () => {
   })
 
   it("merges valid partial settings", () => {
-    const result = parseSettings({ hideShorts: false, dailyLimitMinutes: 90 })
+    const result = parseSettings({ hideShorts: false, audioVolumeBoost: 150 })
     expect(result.hideShorts).toBe(false)
-    expect(result.dailyLimitMinutes).toBe(90)
+    expect(result.audioVolumeBoost).toBe(150)
     expect(result.theme).toBe(defaultSettings.theme)
   })
 
   it("clamps invalid numeric values via schema", () => {
-    const result = parseSettings({ dailyLimitMinutes: 99999, audioVolumeBoost: 50 })
-    expect(result.dailyLimitMinutes).toBe(defaultSettings.dailyLimitMinutes)
+    const result = parseSettings({ audioVolumeBoost: 500 })
     expect(result.audioVolumeBoost).toBe(defaultSettings.audioVolumeBoost)
   })
 

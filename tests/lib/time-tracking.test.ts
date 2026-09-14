@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   createEmptyDailyUsage,
-  getEffectiveDailyLimitMinutes,
   getLocalDateKey,
   getNextLocalMidnight
 } from "~/lib/time-tracking"
@@ -29,9 +28,7 @@ describe("createEmptyDailyUsage", () => {
       totalYoutubeMs: 0,
       watchVideoMs: 0,
       browseMs: 0,
-      searchMs: 0,
-      dailyLimitReachedAt: null,
-      extensionsUsed: 0
+      searchMs: 0
     })
     expect(usage.updatedAt).toBeTypeOf("number")
   })
@@ -55,16 +52,5 @@ describe("getNextLocalMidnight", () => {
     expect(next.getDate()).toBe(7)
     expect(next.getHours()).toBe(0)
     expect(next.getMinutes()).toBe(0)
-  })
-})
-
-describe("getEffectiveDailyLimitMinutes", () => {
-  it("returns base limit when no extensions used", () => {
-    expect(getEffectiveDailyLimitMinutes(60, 0)).toBe(60)
-  })
-
-  it("adds five minutes per extension used", () => {
-    expect(getEffectiveDailyLimitMinutes(60, 1)).toBe(65)
-    expect(getEffectiveDailyLimitMinutes(60, 2)).toBe(70)
   })
 })

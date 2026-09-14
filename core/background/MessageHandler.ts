@@ -32,13 +32,6 @@ export class MessageHandler {
         }
         break
 
-      case MESSAGES.REQUEST_EXTENSION:
-        void this.timeTrackingService.enqueue(async () => {
-          const result = await this.timeTrackingService.requestExtension()
-          sendResponse(result)
-        })
-        break
-
       case MESSAGES.CLOSE_ALL_TABS:
         void (async () => {
           const tabs = await chrome.tabs.query({

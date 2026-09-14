@@ -22,8 +22,6 @@ export type Settings = {
   hideChannelsNewToYou: boolean
   hideExploreMore: boolean
   gridSearchMode: boolean
-  enableDailyLimitAlert: boolean
-  dailyLimitMinutes: number
   theme: "light" | "dark"
   isExtensionEnabled: boolean
   activeTab: "stats" | "filters" | "bookmarks"
@@ -53,8 +51,6 @@ export const defaultSettings: Settings = {
   hideChannelsNewToYou: false,
   hideExploreMore: false,
   gridSearchMode: false,
-  enableDailyLimitAlert: false,
-  dailyLimitMinutes: 60,
   theme: "dark",
   isExtensionEnabled: true,
   activeTab: "stats",

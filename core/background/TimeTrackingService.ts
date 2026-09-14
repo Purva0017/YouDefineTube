@@ -2,15 +2,12 @@ import { Storage } from "@plasmohq/storage"
 import { STORAGE_KEYS, TIMERS } from "~/lib/constants"
 import {
   createEmptyDailyUsage,
-  getEffectiveDailyLimitMinutes,
   getLocalDateKey,
   getNextLocalMidnight,
   type DailyUsage,
   type TimeTrackingSnapshot
 } from "~/lib/time-tracking"
 import { SettingsService } from "./SettingsService"
-import { MESSAGES } from "~/lib/messaging"
-import { EXTENSION_ICON_URL } from "~/lib/assets"
 
 type LiveSession = TimeTrackingSnapshot & {
   lastTickAt: number
@@ -56,23 +53,9 @@ export class TimeTrackingService {
 
     this.settingsService.onSettingsChange((next, prev) => {
       void this.enqueue(async () => {
-        const todayKey = getLocalDateKey()
-        const todayUsage = this.touchUsage(todayKey)
-
         if (prev.isExtensionEnabled && !next.isExtensionEnabled) {
           this.flushAllLiveSessions()
         }
-
-        // If limit duration changed, reset extensions for the day
-        if (prev.dailyLimitMinutes !== next.dailyLimitMinutes) {
-          if ((todayUsage.extensionsUsed || 0) > 0) {
-            todayUsage.extensionsUsed = 0
-            todayUsage.updatedAt = Date.now()
-            this.historyCache[todayKey] = todayUsage
-          }
-        }
-
-        await this.maybeTriggerDailyLimitAlert()
         await this.flushPersist()
       })
     })
@@ -115,7 +98,6 @@ export class TimeTrackingService {
       lastTickAt: now
     })
 
-    await this.maybeTriggerDailyLimitAlert()
     this.schedulePersist()
   }
 
@@ -126,23 +108,7 @@ export class TimeTrackingService {
     this.addDurationToHistory(session.lastTickAt, Date.now(), session)
     this.liveSessions.delete(tabId)
 
-    await this.maybeTriggerDailyLimitAlert()
     await this.flushPersist()
-  }
-
-  public async requestExtension(): Promise<{ ok: boolean; extensionsUsed?: number; error?: string }> {
-    const todayKey = getLocalDateKey()
-    const todayUsage = this.touchUsage(todayKey)
-    if ((todayUsage.extensionsUsed || 0) < 2) {
-      todayUsage.extensionsUsed = (todayUsage.extensionsUsed || 0) + 1
-      todayUsage.updatedAt = Date.now()
-      this.historyCache[todayKey] = todayUsage
-      await this.maybeTriggerDailyLimitAlert()
-      await this.flushPersist()
-      return { ok: true, extensionsUsed: todayUsage.extensionsUsed }
-    } else {
-      return { ok: false, error: "No extensions left" }
-    }
   }
 
   private addDurationToHistory(startAt: number, endAt: number, snapshot: TimeTrackingSnapshot): void {
@@ -277,8 +243,6 @@ export class TimeTrackingService {
         const next = chg?.newValue as DailyUsage | undefined
         if (!next?.date) return
         const usage = this.touchUsage(next.date)
-        usage.extensionsUsed = next.extensionsUsed
-        usage.dailyLimitReachedAt = next.dailyLimitReachedAt
         usage.updatedAt = Math.max(usage.updatedAt || 0, next.updatedAt || 0)
       }
     })
@@ -287,89 +251,10 @@ export class TimeTrackingService {
   private mergeTodayUsage(cached: DailyUsage, stored?: DailyUsage | null): DailyUsage {
     if (!stored || stored.date !== cached.date) return cached
 
-    const storedNewer = (stored.updatedAt || 0) > (cached.updatedAt || 0)
     return {
       ...cached,
-      extensionsUsed: storedNewer ? stored.extensionsUsed : cached.extensionsUsed,
-      dailyLimitReachedAt: storedNewer ? stored.dailyLimitReachedAt : cached.dailyLimitReachedAt,
       updatedAt: Math.max(cached.updatedAt || 0, stored.updatedAt || 0)
     }
-  }
-
-  public async maybeTriggerDailyLimitAlert(): Promise<void> {
-    const settings = this.settingsService.settings
-    const todayKey = getLocalDateKey()
-    const todayUsage = this.touchUsage(todayKey)
-
-    if (!settings.isExtensionEnabled || !settings.enableDailyLimitAlert || settings.dailyLimitMinutes <= 0) {
-      if (todayUsage.dailyLimitReachedAt) {
-        todayUsage.dailyLimitReachedAt = null
-        todayUsage.updatedAt = Date.now()
-        this.historyCache[todayKey] = todayUsage
-      }
-      return
-    }
-
-    const allowedLimitMinutes = getEffectiveDailyLimitMinutes(
-      settings.dailyLimitMinutes || 0,
-      todayUsage.extensionsUsed || 0
-    )
-    const currentTotalMs =
-      (todayUsage.totalYoutubeMs || 0) + this.getUnpersistedMsForDate(todayKey)
-    const currentTotalMinutes = Math.floor(currentTotalMs / 60000)
-
-    if (currentTotalMinutes < allowedLimitMinutes) {
-      if (todayUsage.dailyLimitReachedAt) {
-        todayUsage.dailyLimitReachedAt = null
-        todayUsage.updatedAt = Date.now()
-        this.historyCache[todayKey] = todayUsage
-      }
-      return
-    }
-
-    if (todayUsage.dailyLimitReachedAt) return
-
-    todayUsage.dailyLimitReachedAt = Date.now()
-    todayUsage.updatedAt = Date.now()
-    this.historyCache[todayKey] = todayUsage
-    this.historyDirty = true
-
-    try {
-      if (chrome.notifications?.create) {
-        await chrome.notifications.create(`ydt-daily-limit-${todayKey}`, {
-          type: "basic",
-          iconUrl: EXTENSION_ICON_URL,
-          title: "YouDefineTube daily limit reached",
-          message: `You've reached your ${settings.dailyLimitMinutes}-minute YouTube limit for today.`
-        })
-      }
-    } catch {
-      // Notifications unavailable or context torn down during dev reload.
-    }
-
-    await this.broadcastDailyLimitAlert(settings.dailyLimitMinutes, todayUsage.extensionsUsed || 0)
-    await this.flushPersist()
-  }
-
-  private async broadcastDailyLimitAlert(limitMinutes: number, extensionsUsed: number): Promise<void> {
-    const tabs = await chrome.tabs.query({
-      url: ["https://www.youtube.com/*", "https://m.youtube.com/*"]
-    })
-
-    const message = {
-      type: MESSAGES.DAILY_LIMIT_REACHED,
-      payload: { limitMinutes, extensionsUsed }
-    }
-
-    await Promise.all(
-      tabs
-        .filter((tab) => typeof tab.id === "number")
-        .map(async (tab) => {
-          try {
-            await chrome.tabs.sendMessage(tab.id as number, message)
-          } catch { }
-        })
-    )
   }
 
   public enqueue(task: () => Promise<void>): Promise<void> {

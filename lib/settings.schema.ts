@@ -24,8 +24,6 @@ export const settingsSchema = z.object({
   hideChannelsNewToYou: z.boolean(),
   hideExploreMore: z.boolean(),
   gridSearchMode: z.boolean(),
-  enableDailyLimitAlert: z.boolean(),
-  dailyLimitMinutes: z.number().int().min(1).max(24 * 60),
   theme: z.enum(["light", "dark"]),
   isExtensionEnabled: z.boolean(),
   activeTab: z.enum(["stats", "filters", "bookmarks"]),

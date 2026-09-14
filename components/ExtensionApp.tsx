@@ -1,9 +1,6 @@
 import { useState } from "react"
-import { useStorage } from "@plasmohq/storage/hook"
 
-import { defaultSettings, type Settings } from "~/lib/settings"
-import { STORAGE_KEYS } from "~/lib/constants"
-import { createEmptyDailyUsage, getLocalDateKey, type DailyUsage } from "~/lib/time-tracking"
+import { defaultSettings } from "~/lib/settings"
 import { PANEL_WIDTH } from "~/lib/theme"
 
 import { useTheme } from "~/hooks/useTheme"
@@ -11,7 +8,7 @@ import { useSettings } from "~/hooks/useSettings"
 import { Header } from "./popup/Header"
 import { Footer } from "./popup/Footer"
 import { TimerCard } from "./ui/TimerCard"
-import { DailyLimitCard } from "./ui/DailyLimitCard"
+import { WeeklyActivityCard } from "./ui/WeeklyActivityCard"
 import { TabBar } from "./ui/TabBar"
 import { MainDashboard } from "./views/MainDashboard"
 import { PowerOffView } from "./views/PowerOffView"
@@ -25,10 +22,6 @@ type ExtensionAppProps = {
 
 export function ExtensionApp({ onClose }: ExtensionAppProps) {
   const { settings, setSettings } = useSettings()
-  const [todayUsage] = useStorage<DailyUsage>(
-    STORAGE_KEYS.TIME_TRACKING_TODAY,
-    createEmptyDailyUsage(getLocalDateKey())
-  )
 
   const [activeView, setActiveView] = useState<"main" | "support" | "donate">("main")
   const mainTab = settings?.activeTab || "stats"
@@ -130,30 +123,7 @@ export function ExtensionApp({ onClose }: ExtensionAppProps) {
                     {mainTab === "stats" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <TimerCard colors={colors} isDark={isDark} />
-                        <DailyLimitCard colors={colors} isDark={isDark} />
-                        <div
-                          style={{
-                            padding: "14px 16px",
-                            background: colors.cardBg,
-                            border: `1px solid ${colors.border}`,
-                            borderRadius: 8,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between"
-                          }}>
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: colors.muted, letterSpacing: "0.03em" }}>
-                              Time extensions today
-                            </div>
-                            <div style={{ fontSize: 11, color: colors.subtext, marginTop: 2 }}>
-                              +5 minutes each
-                            </div>
-                          </div>
-                          <div style={{ fontSize: 20, fontWeight: 700, color: colors.text, letterSpacing: "-0.02em" }}>
-                            {todayUsage?.extensionsUsed || 0}
-                            <span style={{ fontSize: 13, fontWeight: 500, color: colors.muted }}> / 2</span>
-                          </div>
-                        </div>
+                        <WeeklyActivityCard colors={colors} isDark={isDark} />
                       </div>
                     )}
                     {mainTab === "filters" && <MainDashboard colors={colors} isDark={isDark} />}

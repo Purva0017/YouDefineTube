@@ -48,7 +48,15 @@ export class ContentScriptController {
       document.addEventListener("yt-navigate-finish", () => this.onNavigate())
 
       chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-        if (message?.type === MESSAGES.GET_CURRENT_TIME) {
+        if (message?.type === MESSAGES.TOGGLE_INLINE_PANEL) {
+          this.inlinePanelManager.toggle()
+          sendResponse({ success: true })
+          return true
+        } else if (message?.type === MESSAGES.OPEN_INLINE_PANEL) {
+          this.inlinePanelManager.open()
+          sendResponse({ success: true })
+          return true
+        } else if (message?.type === MESSAGES.GET_CURRENT_TIME) {
           const video = document.querySelector("video")
           sendResponse({
             time: video ? video.currentTime : null,
@@ -130,7 +138,17 @@ export class ContentScriptController {
       this.overlayManager.showFocusBlockerAlert(
         focus.schedule.name,
         focus.schedule.startTime,
-        focus.schedule.endTime
+        focus.schedule.endTime,
+        () => {
+          this.inlinePanelManager.open()
+        },
+        async () => {
+          const nextSettings: Settings = {
+            ...this.settings,
+            enableFocusBlocker: false
+          }
+          await this.storage.set(STORAGE_KEYS.SETTINGS, nextSettings)
+        }
       )
       return
     }

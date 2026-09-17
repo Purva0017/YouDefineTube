@@ -17,7 +17,13 @@ export class OverlayManager {
     this.homepage.update(settings)
   }
 
-  public showFocusBlockerAlert(scheduleName: string, startTime: string, endTime: string): void {
+  public showFocusBlockerAlert(
+    scheduleName: string,
+    startTime: string,
+    endTime: string,
+    onOpenSettings?: () => void,
+    onDisableSchedule?: () => void
+  ): void {
     const scheduleKey = `${scheduleName}|${startTime}|${endTime}`
 
     if (this.focusBlockerEl?.isConnected) {
@@ -176,6 +182,64 @@ export class OverlayManager {
     })
     btnContainer.appendChild(closeTabBtn)
 
+    if (onOpenSettings) {
+      const settingsBtn = document.createElement("button")
+      Object.assign(settingsBtn.style, {
+        border: "1px solid rgba(255, 255, 255, 0.2)",
+        borderRadius: "12px",
+        padding: "13px 20px",
+        fontWeight: "600",
+        fontSize: "14px",
+        cursor: "pointer",
+        background: "rgba(255, 255, 255, 0.07)",
+        color: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        transition: "transform 0.15s, background-color 0.15s, border-color 0.15s"
+      })
+      settingsBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Open Settings / Modify Schedule</span>`
+      settingsBtn.onmouseover = () => {
+        settingsBtn.style.backgroundColor = "rgba(255, 255, 255, 0.14)"
+        settingsBtn.style.borderColor = "rgba(255, 255, 255, 0.35)"
+        settingsBtn.style.transform = "scale(1.01)"
+      }
+      settingsBtn.onmouseout = () => {
+        settingsBtn.style.backgroundColor = "rgba(255, 255, 255, 0.07)"
+        settingsBtn.style.borderColor = "rgba(255, 255, 255, 0.2)"
+        settingsBtn.style.transform = "none"
+      }
+      settingsBtn.addEventListener("click", () => {
+        onOpenSettings()
+      })
+      btnContainer.appendChild(settingsBtn)
+    }
+
+    if (onDisableSchedule) {
+      const disableBtn = document.createElement("button")
+      disableBtn.setAttribute("data-ydt-disable-btn", "1")
+      Object.assign(disableBtn.style, {
+        border: "none",
+        background: "transparent",
+        color: "#94a3b8",
+        fontSize: "13px",
+        fontWeight: "500",
+        cursor: "pointer",
+        padding: "6px 8px",
+        textDecoration: "underline",
+        textUnderlineOffset: "3px",
+        transition: "color 0.15s"
+      })
+      disableBtn.textContent = isBedtime ? "Turn off Bedtime Blocker for now" : "Turn off Focus Blocker for now"
+      disableBtn.onmouseover = () => { disableBtn.style.color = "#ffffff" }
+      disableBtn.onmouseout = () => { disableBtn.style.color = "#94a3b8" }
+      disableBtn.addEventListener("click", () => {
+        onDisableSchedule()
+      })
+      btnContainer.appendChild(disableBtn)
+    }
+
     const closeAllBtn = document.createElement("button")
     Object.assign(closeAllBtn.style, {
       border: "1px solid rgba(255, 255, 255, 0.15)",
@@ -207,12 +271,16 @@ export class OverlayManager {
     const isBedtime = /bed|sleep|night|rest|evening/i.test(scheduleName)
     const title = this.focusBlockerEl?.querySelector("h2")
     const desc = this.focusBlockerEl?.querySelector<HTMLElement>("[data-ydt-focus-desc]")
+    const disableBtn = this.focusBlockerEl?.querySelector<HTMLButtonElement>("[data-ydt-disable-btn]")
 
     if (title) {
       title.textContent = isBedtime ? "Time to rest" : "Focus Mode Active"
     }
     if (desc) {
       desc.innerHTML = `YouTube is blocked during your schedule: <br><strong>${scheduleName}</strong> (${formatTimeStr(startTime)} - ${formatTimeStr(endTime)})`
+    }
+    if (disableBtn) {
+      disableBtn.textContent = isBedtime ? "Turn off Bedtime Blocker for now" : "Turn off Focus Blocker for now"
     }
   }
 

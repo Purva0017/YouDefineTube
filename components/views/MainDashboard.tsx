@@ -5,6 +5,7 @@ import type { ThemeColors } from "~/lib/theme"
 import { Icons } from "../ui/Icons"
 import { CustomToggle } from "../ui/CustomToggle"
 import { WaveRangeSlider } from "../ui/WaveRangeSlider"
+import { formatTimeStr } from "~/lib/utils"
 
 export function MainDashboard({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const { settings, toggleSetting, setSettings } = useSettings()
@@ -360,7 +361,12 @@ export function MainDashboard({ colors, isDark }: { colors: ThemeColors; isDark:
                   <div style={{ opacity: 0.85, display: "flex", alignItems: "center", width: 20, height: 20, justifyContent: "center" }}>
                     <Icons.Moon />
                   </div>
-                  <span>Bedtime & Focus Blocker</span>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span>Bedtime & Focus Blocker</span>
+                    <span style={{ fontSize: 11, color: colors.muted, fontWeight: 400 }}>
+                      Block YouTube during scheduled hours
+                    </span>
+                  </div>
                 </div>
                 <CustomToggle
                   checked={!!settings?.enableFocusBlocker}
@@ -370,38 +376,347 @@ export function MainDashboard({ colors, isDark }: { colors: ThemeColors; isDark:
                 />
               </div>
 
-              {settings?.enableFocusBlocker && settings && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
-                  {settings.focusSchedules?.map((sched) => (
-                    <div
-                      key={sched.id}
-                      style={{
-                        background: colors.tabBg,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 8,
-                        padding: 10
-                      }}>
+              {settings && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 2px" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Schedules
+                    </span>
+                    {!settings.enableFocusBlocker && (
+                      <span style={{ fontSize: 10.5, color: colors.muted, fontStyle: "italic" }}>
+                        (Toggle ON above to activate)
+                      </span>
+                    )}
+                  </div>
+
+                  {(settings.focusSchedules || []).map((sched) => {
+                    const isExpanded = expandedScheduleId === sched.id
+                    const spansMidnight = sched.startTime && sched.endTime && sched.startTime > sched.endTime
+                    const dayLabels = ["S", "M", "T", "W", "T", "F", "S"]
+                    const fullDayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+                    const formatDaysText = (days: number[]) => {
+                      if (!days || days.length === 0) return "No days"
+                      if (days.length === 7) return "Everyday"
+                      if (days.length === 5 && [1, 2, 3, 4, 5].every((d) => days.includes(d))) return "Weekdays"
+                      if (days.length === 2 && [0, 6].every((d) => days.includes(d))) return "Weekends"
+                      return [...days].sort((a, b) => a - b).map((d) => fullDayNames[d]).join(", ")
+                    }
+
+                    return (
                       <div
-                        onClick={() => setExpandedScheduleId(expandedScheduleId === sched.id ? null : sched.id)}
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
-                          {sched.name} ({sched.startTime} - {sched.endTime})
+                        key={sched.id}
+                        style={{
+                          background: colors.tabBg,
+                          border: `1px solid ${isExpanded ? colors.accent : colors.border}`,
+                          borderRadius: 10,
+                          padding: "10px 12px",
+                          transition: "border-color 0.15s ease",
+                          boxShadow: isExpanded ? `0 0 0 1px ${colors.accent}` : "none"
+                        }}>
+                        {/* Schedule Header Row */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <div
+                            onClick={() => setExpandedScheduleId(isExpanded ? null : sched.id)}
+                            style={{ flex: 1, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                            <div style={{
+                              transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                              transition: "transform 0.15s ease",
+                              display: "flex",
+                              alignItems: "center",
+                              color: colors.subtext,
+                              flexShrink: 0
+                            }}>
+                              <Icons.Chevron rotated={false} />
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: colors.text, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {sched.name || "Focus Schedule"}
+                                </span>
+                                {spansMidnight && (
+                                  <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: isDark ? "rgba(244,63,94,0.15)" : "rgba(225,29,72,0.1)", color: isDark ? "#f43f5e" : "#e11d48", fontWeight: 600, flexShrink: 0 }}>
+                                    🌙 Overnight
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>
+                                {formatDaysText(sched.days)} · {formatTimeStr(sched.startTime)} – {formatTimeStr(sched.endTime)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => setExpandedScheduleId(isExpanded ? null : sched.id)}
+                              style={{
+                                background: isExpanded ? (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)") : "none",
+                                border: `1px solid ${isExpanded ? colors.border : "transparent"}`,
+                                padding: "4px 8px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: isExpanded ? colors.text : colors.accent,
+                                cursor: "pointer",
+                                borderRadius: 6
+                              }}>
+                              {isExpanded ? "Done" : "Edit"}
+                            </button>
+                            <CustomToggle
+                              checked={sched.enabled}
+                              onChange={() => {
+                                const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                  s.id === sched.id ? { ...s, enabled: !s.enabled } : s
+                                )
+                                setSettings({ ...settings, focusSchedules: nextSchedules })
+                              }}
+                              isDark={isDark}
+                              colors={colors}
+                              size="small"
+                            />
+                          </div>
                         </div>
-                        <CustomToggle
-                          checked={sched.enabled}
-                          onChange={() => {
-                            const nextSchedules = settings.focusSchedules.map((s) =>
-                              s.id === sched.id ? { ...s, enabled: !s.enabled } : s
-                            )
-                            setSettings({ ...settings, focusSchedules: nextSchedules })
-                          }}
-                          isDark={isDark}
-                          colors={colors}
-                          size="small"
-                        />
+
+                        {/* Expanded Editor Form */}
+                        {isExpanded && (
+                          <div style={{ borderTop: `1px solid ${colors.border}`, marginTop: 10, paddingTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                            {/* Schedule Name */}
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 600, color: colors.subtext, display: "block", marginBottom: 4 }}>
+                                Schedule Name
+                              </label>
+                              <input
+                                type="text"
+                                value={sched.name}
+                                onChange={(e) => {
+                                  const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                    s.id === sched.id ? { ...s, name: e.target.value } : s
+                                  )
+                                  setSettings({ ...settings, focusSchedules: nextSchedules })
+                                }}
+                                placeholder="e.g. Bedtime Blocker, Study Mode"
+                                style={{
+                                  width: "100%",
+                                  background: colors.cardBg,
+                                  border: `1px solid ${colors.border}`,
+                                  color: colors.text,
+                                  borderRadius: 6,
+                                  padding: "7px 10px",
+                                  fontSize: 12.5,
+                                  outline: "none"
+                                }}
+                              />
+                            </div>
+
+                            {/* Time Window */}
+                            <div>
+                              <label style={{ fontSize: 11, fontWeight: 600, color: colors.subtext, display: "block", marginBottom: 4 }}>
+                                Active Time Window
+                              </label>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontSize: 10, color: colors.muted, display: "block", marginBottom: 2 }}>From</span>
+                                  <input
+                                    type="time"
+                                    value={sched.startTime}
+                                    onChange={(e) => {
+                                      const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                        s.id === sched.id ? { ...s, startTime: e.target.value } : s
+                                      )
+                                      setSettings({ ...settings, focusSchedules: nextSchedules })
+                                    }}
+                                    style={{
+                                      width: "100%",
+                                      background: colors.cardBg,
+                                      border: `1px solid ${colors.border}`,
+                                      color: colors.text,
+                                      borderRadius: 6,
+                                      padding: "6px 8px",
+                                      fontSize: 12.5,
+                                      outline: "none"
+                                    }}
+                                  />
+                                </div>
+                                <span style={{ color: colors.muted, paddingTop: 14 }}>→</span>
+                                <div style={{ flex: 1 }}>
+                                  <span style={{ fontSize: 10, color: colors.muted, display: "block", marginBottom: 2 }}>To</span>
+                                  <input
+                                    type="time"
+                                    value={sched.endTime}
+                                    onChange={(e) => {
+                                      const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                        s.id === sched.id ? { ...s, endTime: e.target.value } : s
+                                      )
+                                      setSettings({ ...settings, focusSchedules: nextSchedules })
+                                    }}
+                                    style={{
+                                      width: "100%",
+                                      background: colors.cardBg,
+                                      border: `1px solid ${colors.border}`,
+                                      color: colors.text,
+                                      borderRadius: 6,
+                                      padding: "6px 8px",
+                                      fontSize: 12.5,
+                                      outline: "none"
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Active Days */}
+                            <div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: colors.subtext }}>
+                                  Active Days
+                                </label>
+                                <div style={{ display: "flex", gap: 6, fontSize: 10.5 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                        s.id === sched.id ? { ...s, days: [0, 1, 2, 3, 4, 5, 6] } : s
+                                      )
+                                      setSettings({ ...settings, focusSchedules: nextSchedules })
+                                    }}
+                                    style={{ background: "none", border: "none", color: colors.accent, cursor: "pointer", padding: 0 }}>
+                                    All
+                                  </button>
+                                  <span style={{ color: colors.border }}>·</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                        s.id === sched.id ? { ...s, days: [1, 2, 3, 4, 5] } : s
+                                      )
+                                      setSettings({ ...settings, focusSchedules: nextSchedules })
+                                    }}
+                                    style={{ background: "none", border: "none", color: colors.accent, cursor: "pointer", padding: 0 }}>
+                                    Weekdays
+                                  </button>
+                                  <span style={{ color: colors.border }}>·</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                        s.id === sched.id ? { ...s, days: [0, 6] } : s
+                                      )
+                                      setSettings({ ...settings, focusSchedules: nextSchedules })
+                                    }}
+                                    style={{ background: "none", border: "none", color: colors.accent, cursor: "pointer", padding: 0 }}>
+                                    Weekends
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 4 }}>
+                                {dayLabels.map((label, dayIdx) => {
+                                  const isDayActive = sched.days.includes(dayIdx)
+                                  return (
+                                    <button
+                                      key={dayIdx}
+                                      type="button"
+                                      title={fullDayNames[dayIdx]}
+                                      onClick={() => {
+                                        const nextDays = isDayActive
+                                          ? sched.days.filter((d) => d !== dayIdx)
+                                          : [...sched.days, dayIdx]
+                                        const nextSchedules = (settings.focusSchedules || []).map((s) =>
+                                          s.id === sched.id ? { ...s, days: nextDays } : s
+                                        )
+                                        setSettings({ ...settings, focusSchedules: nextSchedules })
+                                      }}
+                                      style={{
+                                        flex: 1,
+                                        height: 28,
+                                        borderRadius: 6,
+                                        border: isDayActive ? "none" : `1px solid ${colors.border}`,
+                                        background: isDayActive ? colors.accent : "transparent",
+                                        color: isDayActive ? "#ffffff" : colors.subtext,
+                                        fontSize: 11,
+                                        fontWeight: isDayActive ? 700 : 500,
+                                        cursor: "pointer",
+                                        transition: "all 0.15s ease"
+                                      }}>
+                                      {label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Delete Button */}
+                            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 4 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextSchedules = (settings.focusSchedules || []).filter((s) => s.id !== sched.id)
+                                  setSettings({ ...settings, focusSchedules: nextSchedules })
+                                  setExpandedScheduleId(null)
+                                }}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: colors.danger,
+                                  fontSize: 11.5,
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  padding: "4px 6px"
+                                }}>
+                                Delete Schedule
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
+
+                  {/* Add Schedule Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newId = `sched-${Date.now()}`
+                      const newSched = {
+                        id: newId,
+                        name: "Focus Hours",
+                        enabled: true,
+                        startTime: "09:00",
+                        endTime: "17:00",
+                        days: [1, 2, 3, 4, 5]
+                      }
+                      setSettings({
+                        ...settings,
+                        focusSchedules: [...(settings.focusSchedules || []), newSched]
+                      })
+                      setExpandedScheduleId(newId)
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: `1px dashed ${colors.border}`,
+                      background: "transparent",
+                      color: colors.subtext,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      marginTop: 2,
+                      transition: "all 0.15s ease"
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = colors.accent
+                      e.currentTarget.style.color = colors.accent
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = colors.border
+                      e.currentTarget.style.color = colors.subtext
+                    }}>
+                    + Add Focus Schedule
+                  </button>
                 </div>
               )}
             </div>

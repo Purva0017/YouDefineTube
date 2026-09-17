@@ -1,7 +1,7 @@
 {
   "name": "you-define-tube",
   "displayName": "YouDefineTube: Block YouTube distractions, hide shorts, set time limits",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Redefine your YouTube experience. Block addictive distractions, set daily limits, and track your time for better focus.",
   "author": "Purva",
   "scripts": {

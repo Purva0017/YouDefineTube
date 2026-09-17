@@ -13,4 +13,4 @@ export const OVERLAY_THEME = {
   font: "'Inter', system-ui, -apple-system, sans-serif"
 } as const
 
-export const OVERLAY_Z = 2147483647
+export const OVERLAY_Z = 2147483640

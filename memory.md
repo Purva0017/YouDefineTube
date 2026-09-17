@@ -116,10 +116,13 @@ In September 2026, after evaluating the daily limit and blocking overlay UX, the
      - `▼ GENERAL DISTRACTIONS` (Hide Shorts, Hide Homepage Recommendations with `>` chevron & redirect sub-toggle, Hide Video Sidebar Recommendations, Hide Comments, Hide End Screen, Hide Live Chat, Hide Playables).
      - `▼ SEARCH REFINEMENTS` (Hide 'People also watched', Hide 'People also search for', Hide 'From related searches', Hide 'Channels new to you', Hide 'Explore more').
      - Matched toggle switches: dark charcoal track when off (`#3a3a3c`), vibrant YouTube red track when on (`#cc0000`), with pure white knob.
-     - Kept Audio Enhancements and Focus Schedules as collapsible sections below.
+    - `Bedtime & Focus Mode Accessibility`:
+      - Blocker overlay now includes a prominent **"Open Settings / Modify Schedule"** button that opens the inline panel directly over the overlay (using adjusted z-index hierarchy).
+      - Blocker overlay also provides a 1-click **"Turn off Bedtime Blocker for now"** action that updates storage and immediately unblocks the screen.
+      - Clicking the extension icon in the Chrome browser toolbar (`chrome.action.onClicked`) now dispatches `TOGGLE_INLINE_PANEL` to the active YouTube tab, allowing users to toggle open the popup at any time from the browser bar.
 5. **Tests**:
-   - Deleted `DailyLimitOverlay.test.ts`.
-   - Updated `time-tracking.test.ts` and `parse-settings.test.ts`. All 10 suites (51 tests) pass.
+    - Deleted `DailyLimitOverlay.test.ts`.
+    - Updated `time-tracking.test.ts` and `parse-settings.test.ts`. All 10 suites (51 tests) pass.
 
 ---
 

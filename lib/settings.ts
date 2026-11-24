@@ -34,6 +34,11 @@ export type Settings = {
   focusSchedules: FocusSchedule[]
   enableFrictionScreen: boolean
   isFocusCategoryOpen: boolean
+  enableDailyTimeLimit: boolean
+  dailyTimeLimitMinutes: number
+  timeLimitWarning50Dismissed: string  // date key "YYYY-MM-DD" when 50% warning was dismissed
+  timeLimitWarning90Dismissed: string  // date key "YYYY-MM-DD" when 90% warning was dismissed
+  timeLimitWarning100Dismissed: string // date key "YYYY-MM-DD" when 100% warning notification was shown
 }
 
 export const defaultSettings: Settings = {
@@ -71,7 +76,12 @@ export const defaultSettings: Settings = {
     }
   ],
   enableFrictionScreen: false,
-  isFocusCategoryOpen: true
+  isFocusCategoryOpen: true,
+  enableDailyTimeLimit: false,
+  dailyTimeLimitMinutes: 120,
+  timeLimitWarning50Dismissed: "",
+  timeLimitWarning90Dismissed: "",
+  timeLimitWarning100Dismissed: ""
 }
 
 export { focusScheduleSchema, settingsSchema } from "./settings.schema"

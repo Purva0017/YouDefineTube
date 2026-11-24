@@ -4,6 +4,9 @@ import { createEmptyDailyUsage, getLocalDateKey, type DailyUsage } from "~/lib/t
 import type { ThemeColors } from "~/lib/theme"
 import { Icons } from "./Icons"
 import { formatDuration } from "~/lib/utils"
+import { useSettings } from "~/hooks/useSettings"
+import { CustomToggle } from "./CustomToggle"
+import { useState } from "react"
 
 export function TimerCard({ colors, isDark }: { colors: ThemeColors; isDark: boolean }) {
   const [todayUsage] = useStorage<DailyUsage>(
@@ -11,10 +14,11 @@ export function TimerCard({ colors, isDark }: { colors: ThemeColors; isDark: boo
     createEmptyDailyUsage(getLocalDateKey())
   )
 
-  const totalMs = todayUsage?.totalYoutubeMs || 0
-  const watchMs = todayUsage?.watchVideoMs || 0
-  const browseMs = todayUsage?.browseMs || 0
-  const searchMs = todayUsage?.searchMs || 0
+  const isCurrentDay = todayUsage?.date === getLocalDateKey()
+  const totalMs = isCurrentDay ? todayUsage?.totalYoutubeMs || 0 : 0
+  const watchMs = isCurrentDay ? todayUsage?.watchVideoMs || 0 : 0
+  const browseMs = isCurrentDay ? todayUsage?.browseMs || 0 : 0
+  const searchMs = isCurrentDay ? todayUsage?.searchMs || 0 : 0
 
   const safeTotal = Math.max(totalMs, 1)
   const watchPercent = totalMs > 0 ? (watchMs / safeTotal) * 100 : 0
@@ -51,6 +55,35 @@ export function TimerCard({ colors, isDark }: { colors: ThemeColors; isDark: boo
 
   const activeSegments = segments.filter((s) => s.percent > 0)
 
+  const { settings, setSettings, toggleSetting } = useSettings()
+  const enableDailyTimeLimit = !!settings?.enableDailyTimeLimit
+  const dailyLimitMinutes = settings?.dailyTimeLimitMinutes ?? 120
+  const limitMs = dailyLimitMinutes * 60 * 1000
+  const rawPercent = limitMs > 0 ? (totalMs / limitMs) * 100 : 0
+  const isOver50 = rawPercent >= 50
+  const isOver90 = rawPercent >= 90
+  const isOver100 = rawPercent >= 100
+  const [isCustomEditing, setIsCustomEditing] = useState(false)
+  const [customInputValue, setCustomInputValue] = useState(String(dailyLimitMinutes))
+
+  const handleSetLimit = (mins: number) => {
+    const clamped = Math.max(1, Math.min(1440, Math.round(mins)))
+    setSettings({ dailyTimeLimitMinutes: clamped })
+    setCustomInputValue(String(clamped))
+    setIsCustomEditing(false)
+  }
+
+  const formatLimitLabel = (mins: number) => {
+    if (mins >= 60) {
+      const h = Math.floor(mins / 60)
+      const m = mins % 60
+      return m > 0 ? `${h}h ${m}m` : `${h}h`
+    }
+    return `${mins}m`
+  }
+
+  const PRESETS = [30, 60, 90, 120, 180, 240]
+
   // Dynamic insight based on browsing habits
   let insightText: string | null = null
   if (totalMs > 10 * 60 * 1000) {
@@ -60,6 +93,12 @@ export function TimerCard({ colors, isDark }: { colors: ThemeColors; isDark: boo
       insightText = `High focus: ${Math.round(watchPercent)}% of your YouTube time was spent directly watching videos.`
     }
   }
+
+  const limitBarGradient = isOver90
+    ? "linear-gradient(90deg, #ef4444, #f43f5e)"
+    : isOver50
+    ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
+    : "linear-gradient(90deg, #10b981, #06b6d4)"
 
   return (
     <div
@@ -239,6 +278,418 @@ export function TimerCard({ colors, isDark }: { colors: ThemeColors; isDark: boo
           <span>{insightText}</span>
         </div>
       )}
+
+      {/* Divider */}
+      <div style={{ height: 1, background: colors.border, margin: "2px 0 0" }} />
+
+      {/* ==================== DAILY TIME LIMIT SECTION ==================== */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Header with toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15 }}>🎯</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: colors.text, display: "flex", alignItems: "center", gap: 6 }}>
+                Daily YouTube Limit
+                {enableDailyTimeLimit && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: 12,
+                      background: isOver90
+                        ? (isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.12)")
+                        : isOver50
+                        ? (isDark ? "rgba(245, 158, 11, 0.2)" : "rgba(245, 158, 11, 0.12)")
+                        : (isDark ? "rgba(16, 185, 129, 0.2)" : "rgba(16, 185, 129, 0.12)"),
+                      color: isOver90 ? "#ef4444" : isOver50 ? "#f59e0b" : "#10b981",
+                      border: `1px solid ${
+                        isOver90
+                          ? "rgba(239, 68, 68, 0.3)"
+                          : isOver50
+                          ? "rgba(245, 158, 11, 0.3)"
+                          : "rgba(16, 185, 129, 0.3)"
+                      }`
+                    }}>
+                    {formatLimitLabel(dailyLimitMinutes)} limit
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: colors.muted, marginTop: 1 }}>
+                Warns at 50% & 90% · Resets at 12:00 AM
+              </div>
+            </div>
+          </div>
+
+          <CustomToggle
+            checked={enableDailyTimeLimit}
+            onChange={() => toggleSetting("enableDailyTimeLimit")}
+            isDark={isDark}
+            colors={colors}
+            size="small"
+          />
+        </div>
+
+        {enableDailyTimeLimit && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: colors.tabBg,
+              border: `1px solid ${colors.border}`
+            }}>
+            {/* Limit Adjustment Row: Presets & Stepper */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: colors.muted, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Daily Allowance
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleSetLimit(dailyLimitMinutes - 15)}
+                    style={{
+                      background: colors.cardBg,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 6,
+                      color: colors.text,
+                      width: 24,
+                      height: 24,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                    title="Decrease by 15 min">
+                    -
+                  </button>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: colors.text, minWidth: 48, textAlign: "center" }}>
+                    {formatLimitLabel(dailyLimitMinutes)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSetLimit(dailyLimitMinutes + 15)}
+                    style={{
+                      background: colors.cardBg,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 6,
+                      color: colors.text,
+                      width: 24,
+                      height: 24,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0
+                    }}
+                    title="Increase by 15 min">
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Preset Chips */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {PRESETS.map((mins) => {
+                  const isSelected = dailyLimitMinutes === mins
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => handleSetLimit(mins)}
+                      style={{
+                        padding: "3px 9px",
+                        borderRadius: 6,
+                        fontSize: 11,
+                        fontWeight: isSelected ? 700 : 500,
+                        background: isSelected ? colors.accent : colors.cardBg,
+                        color: isSelected ? "#ffffff" : colors.text,
+                        border: `1px solid ${isSelected ? colors.accent : colors.border}`,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}>
+                      {formatLimitLabel(mins)}
+                    </button>
+                  )
+                })}
+                <button
+                  type="button"
+                  onClick={() => setIsCustomEditing(!isCustomEditing)}
+                  style={{
+                    padding: "3px 9px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: isCustomEditing ? 700 : 500,
+                    background: isCustomEditing ? colors.accent : colors.cardBg,
+                    color: isCustomEditing ? "#ffffff" : colors.muted,
+                    border: `1px solid ${isCustomEditing ? colors.accent : colors.border}`,
+                    cursor: "pointer"
+                  }}>
+                  Custom
+                </button>
+              </div>
+
+              {/* Custom Minutes Input if toggled */}
+              {isCustomEditing && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                  <input
+                    type="number"
+                    min={1}
+                    max={1440}
+                    value={customInputValue}
+                    onChange={(e) => setCustomInputValue(e.target.value)}
+                    placeholder="Minutes"
+                    style={{
+                      flex: 1,
+                      padding: "5px 8px",
+                      borderRadius: 6,
+                      background: colors.cardBg,
+                      border: `1px solid ${colors.border}`,
+                      color: colors.text,
+                      fontSize: 12,
+                      outline: "none"
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const parsed = parseInt(customInputValue, 10)
+                      if (!isNaN(parsed) && parsed > 0) {
+                        handleSetLimit(parsed)
+                      }
+                    }}
+                    style={{
+                      padding: "5px 12px",
+                      borderRadius: 6,
+                      background: colors.accent,
+                      border: "none",
+                      color: "#ffffff",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}>
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Progress vs Limit with Threshold Markers */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: colors.text }}>
+                  {formatDuration(totalMs)}{" "}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: colors.muted }}>
+                    / {formatDuration(limitMs)} used
+                  </span>
+                </span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: isOver90 ? "#ef4444" : isOver50 ? "#f59e0b" : colors.text
+                  }}>
+                  {Math.round(rawPercent)}%
+                </span>
+              </div>
+
+              {/* Progress bar container with 50% and 90% notches */}
+              <div style={{ position: "relative", width: "100%", paddingTop: 4, paddingBottom: 16 }}>
+                <div
+                  style={{
+                    height: 8,
+                    background: barTrack,
+                    borderRadius: 999,
+                    position: "relative",
+                    overflow: "hidden"
+                  }}>
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.max(0, rawPercent))}%`,
+                      height: "100%",
+                      background: limitBarGradient,
+                      borderRadius: 999,
+                      transition: "width 0.4s ease, background 0.3s ease"
+                    }}
+                  />
+                </div>
+
+                {/* 50% Threshold marker */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: 2,
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    pointerEvents: "none"
+                  }}>
+                  <div
+                    style={{
+                      width: 2,
+                      height: 12,
+                      background: isOver50 ? "#f59e0b" : colors.muted,
+                      borderRadius: 1
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: isOver50 ? "#f59e0b" : colors.muted,
+                      marginTop: 2
+                    }}>
+                    50%
+                  </span>
+                </div>
+
+                {/* 90% Threshold marker */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "90%",
+                    top: 2,
+                    transform: "translateX(-50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    pointerEvents: "none"
+                  }}>
+                  <div
+                    style={{
+                      width: 2,
+                      height: 12,
+                      background: isOver90 ? "#ef4444" : colors.muted,
+                      borderRadius: 1
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: isOver90 ? "#ef4444" : colors.muted,
+                      marginTop: 2
+                    }}>
+                    90%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning status alerts */}
+            {isOver100 ? (
+              <div
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: 8,
+                  background: isDark ? "rgba(220, 38, 38, 0.2)" : "rgba(220, 38, 38, 0.12)",
+                  border: `1px solid ${isDark ? "rgba(220, 38, 38, 0.5)" : "rgba(220, 38, 38, 0.35)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 12,
+                  color: isDark ? "#ff6b7e" : "#dc2626"
+                }}>
+                <span style={{ fontSize: 16 }}>🛑</span>
+                <div>
+                  <div style={{ fontWeight: 800 }}>Daily Limit Reached (Hard Block Active)</div>
+                  <div style={{ fontSize: 11, opacity: 0.9, marginTop: 1 }}>
+                    YouTube is blocked for today. Resets automatically at 12:00 AM.
+                  </div>
+                </div>
+              </div>
+            ) : isOver90 ? (
+              <div
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: 8,
+                  background: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
+                  border: `1px solid ${isDark ? "rgba(239, 68, 68, 0.35)" : "rgba(239, 68, 68, 0.25)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 12,
+                  color: isDark ? "#ff6b7e" : "#dc2626"
+                }}>
+                <span style={{ fontSize: 14 }}>🚨</span>
+                <div>
+                  <div style={{ fontWeight: 700 }}>90% Limit Reached (2nd Warning Triggered)</div>
+                  <div style={{ fontSize: 11, opacity: 0.9, marginTop: 1 }}>
+                    Only {Math.max(0, dailyLimitMinutes - Math.round(totalMs / 60000))} min remaining today.
+                  </div>
+                </div>
+              </div>
+            ) : isOver50 ? (
+              <div
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: 8,
+                  background: isDark ? "rgba(245, 158, 11, 0.12)" : "rgba(245, 158, 11, 0.08)",
+                  border: `1px solid ${isDark ? "rgba(245, 158, 11, 0.35)" : "rgba(245, 158, 11, 0.25)"}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 12,
+                  color: isDark ? "#fbbf24" : "#d97706"
+                }}>
+                <span style={{ fontSize: 14 }}>⏳</span>
+                <div>
+                  <div style={{ fontWeight: 700 }}>50% Limit Reached (1st Warning Triggered)</div>
+                  <div style={{ fontSize: 11, opacity: 0.9, marginTop: 1 }}>
+                    Half of your daily limit used ({formatDuration(totalMs)}).
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: 11.5,
+                  color: colors.subtext,
+                  padding: "2px 2px"
+                }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>
+                  <span>{formatDuration(Math.max(0, limitMs - totalMs))} remaining today</span>
+                </span>
+                <span style={{ fontSize: 11, color: colors.muted }}>
+                  Warnings at 50% & 90%
+                </span>
+              </div>
+            )}
+
+            {/* Timezone & Midnight Reset Notice */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11,
+                color: colors.muted,
+                paddingTop: 2,
+                borderTop: `1px dashed ${colors.border}`
+              }}>
+              <span style={{ fontSize: 12 }}>⏱️</span>
+              <span>
+                Resets daily at 12:00 AM ({Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"})
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

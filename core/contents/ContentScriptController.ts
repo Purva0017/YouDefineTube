@@ -6,6 +6,7 @@ import { MESSAGES } from "~/lib/messaging"
 import { isFocusScheduleActive } from "~/lib/focus-blocker"
 import { isExtensionContextValid, safeSendMessage } from "~/lib/extension-runtime"
 import { resolveYouTubeVideoTitle } from "~/lib/youtube-title"
+import { createEmptyDailyUsage, getLocalDateKey, type DailyUsage } from "~/lib/time-tracking"
 
 import { DistractionManager } from "./DistractionManager"
 import { TimeReporter } from "./TimeReporter"
@@ -19,6 +20,7 @@ import { InlinePanelManager } from "./InlinePanelManager"
 export class ContentScriptController {
   private storage = new Storage()
   private settings: Settings = { ...defaultSettings }
+  private todayUsage: DailyUsage = createEmptyDailyUsage()
 
   private readonly distractionManager = new DistractionManager()
   private readonly timeReporter = new TimeReporter()
@@ -69,6 +71,22 @@ export class ContentScriptController {
             video.currentTime = message.payload.time
             video.play().catch(() => {})
           }
+        } else if (message?.type === MESSAGES.TIME_LIMIT_WARNING) {
+          if (message.payload.level === 100) {
+            this.overlayManager.removeFrictionPrompt()
+            this.overlayManager.removeFrictionGoalOverlay()
+            this.overlayManager.showDailyLimitBlocker(
+              message.payload.limitMinutes,
+              message.payload.usedMs,
+              () => this.inlinePanelManager.open()
+            )
+          } else {
+            this.overlayManager.showTimeLimitWarning(message.payload, () => {
+              this.inlinePanelManager.open()
+            })
+          }
+          sendResponse({ success: true })
+          return true
         }
       })
 
@@ -133,6 +151,7 @@ export class ContentScriptController {
 
     const focus = isFocusScheduleActive(this.settings)
     if (focus.active && focus.schedule) {
+      this.overlayManager.removeDailyLimitBlocker()
       this.overlayManager.removeFrictionPrompt()
       this.overlayManager.removeFrictionGoalOverlay()
       this.overlayManager.showFocusBlockerAlert(
@@ -154,6 +173,31 @@ export class ContentScriptController {
     }
 
     this.overlayManager.removeFocusBlockerAlert()
+
+    // Daily Time Limit Hard Block Check
+    if (
+      this.settings.isExtensionEnabled &&
+      this.settings.enableDailyTimeLimit &&
+      this.settings.dailyTimeLimitMinutes > 0
+    ) {
+      const todayKey = getLocalDateKey()
+      const isToday = this.todayUsage.date === todayKey
+      const totalUsedMs = isToday ? (this.todayUsage.totalYoutubeMs || 0) : 0
+      const limitMs = this.settings.dailyTimeLimitMinutes * 60 * 1000
+
+      if (totalUsedMs >= limitMs) {
+        this.overlayManager.removeFrictionPrompt()
+        this.overlayManager.removeFrictionGoalOverlay()
+        this.overlayManager.showDailyLimitBlocker(
+          this.settings.dailyTimeLimitMinutes,
+          totalUsedMs,
+          () => this.inlinePanelManager.open()
+        )
+        return
+      }
+    }
+
+    this.overlayManager.removeDailyLimitBlocker()
 
     if (this.settings.isExtensionEnabled && this.settings.enableFrictionScreen) {
       let goalDismissed = false
@@ -219,6 +263,10 @@ export class ContentScriptController {
   private async loadSettings(): Promise<void> {
     const raw = await this.storage.get<Partial<Settings>>(STORAGE_KEYS.SETTINGS)
     this.settings = parseSettings(raw)
+    const rawUsage = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
+    if (rawUsage?.date === getLocalDateKey()) {
+      this.todayUsage = rawUsage
+    }
     this.applySettingsToManagers()
 
     if (document.body) {
@@ -256,6 +304,15 @@ export class ContentScriptController {
           this.navigationManager.handleRevertToShortsIfApplicable()
         }
         this.navigationManager.handleRedirections(this.settings)
+      },
+      [STORAGE_KEYS.TIME_TRACKING_TODAY]: (chg) => {
+        const next = chg?.newValue as DailyUsage | undefined
+        if (next?.date === getLocalDateKey()) {
+          this.todayUsage = next
+          if (document.body) {
+            this.checkFocusAndFriction()
+          }
+        }
       }
     })
   }

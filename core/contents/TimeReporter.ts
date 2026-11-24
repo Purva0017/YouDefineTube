@@ -20,13 +20,20 @@ export class TimeReporter {
     this.setupListeners()
     this.startHeartbeat()
     this.tick()
+    this.sendReport()
   }
 
   private setupListeners(): void {
     document.addEventListener("yt-navigate-finish", () => this.queueReport())
-    document.addEventListener("visibilitychange", () => this.queueReport())
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") {
+        this.sendReport()
+      } else {
+        this.queueReport()
+      }
+    })
     window.addEventListener("focus", () => this.queueReport())
-    window.addEventListener("blur", () => this.queueReport())
+    window.addEventListener("blur", () => this.sendReport())
     window.addEventListener("pagehide", () => this.sendReport())
   }
 
@@ -47,7 +54,7 @@ export class TimeReporter {
   public queueReport(): void {
     if (this.reportQueued) return
     this.reportQueued = true
-    requestAnimationFrame(() => {
+    queueMicrotask(() => {
       this.reportQueued = false
       this.sendReport()
     })

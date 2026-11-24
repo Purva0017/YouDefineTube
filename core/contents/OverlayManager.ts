@@ -1,6 +1,6 @@
 import { MESSAGES } from "~/lib/messaging"
 import type { Settings } from "~/lib/settings"
-import { formatTimeStr } from "~/lib/utils"
+import { formatDuration, formatMinutes, formatTimeStr } from "~/lib/utils"
 import { safeSendMessage } from "~/lib/extension-runtime"
 import { OVERLAY_THEME, OVERLAY_Z } from "./overlays/overlay-theme"
 import { ensureKeyframes, pauseCurrentVideo } from "./overlays/overlay-dom"
@@ -653,5 +653,455 @@ export class OverlayManager {
       this.frictionGoalEl.remove()
       this.frictionGoalEl = null
     }
+  }
+
+  private timeLimitToastEl: HTMLDivElement | null = null
+  private timeLimitToastTimer: ReturnType<typeof setTimeout> | null = null
+
+  public showTimeLimitWarning(
+    payload: {
+      level: 50 | 90
+      usedMs: number
+      limitMs: number
+      limitMinutes: number
+    },
+    onManageLimit?: () => void
+  ): void {
+    if (this.timeLimitToastEl) {
+      this.timeLimitToastEl.remove()
+      this.timeLimitToastEl = null
+    }
+    if (this.timeLimitToastTimer) {
+      clearTimeout(this.timeLimitToastTimer)
+      this.timeLimitToastTimer = null
+    }
+
+    const is90 = payload.level === 90
+    const usedMinutes = Math.round(payload.usedMs / 60000)
+    const remainingMinutes = Math.max(0, payload.limitMinutes - usedMinutes)
+
+    const accentColor = is90 ? "#ef4444" : "#f59e0b"
+    const accentBg = is90 ? "rgba(239, 68, 68, 0.15)" : "rgba(245, 158, 11, 0.15)"
+    const borderColor = is90 ? "rgba(239, 68, 68, 0.4)" : "rgba(245, 158, 11, 0.4)"
+    const icon = is90 ? "⚠️" : "⏳"
+    const title = is90 ? "90% Daily YouTube Limit Reached" : "50% Daily YouTube Limit Reached"
+    const subtitle = is90
+      ? `You have used ${usedMinutes} of ${payload.limitMinutes} min. Only ${remainingMinutes} min left today!`
+      : `You've used ${usedMinutes} of ${payload.limitMinutes} min (${Math.round((payload.usedMs / payload.limitMs) * 100)}%).`
+
+    const toast = document.createElement("div")
+    toast.setAttribute("data-youdefinetube-time-limit-warning", String(payload.level))
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "24px",
+      right: "24px",
+      zIndex: String(OVERLAY_Z + 10),
+      maxWidth: "380px",
+      padding: "16px 18px",
+      borderRadius: "14px",
+      background: "rgba(18, 18, 22, 0.96)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+      border: `1px solid ${borderColor}`,
+      boxShadow: `0 12px 36px rgba(0, 0, 0, 0.5), 0 0 16px ${accentBg}`,
+      color: "#ffffff",
+      fontFamily: OVERLAY_THEME.font,
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      opacity: "0",
+      transform: "translateY(16px)",
+      transition: "opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)"
+    })
+
+    const header = document.createElement("div")
+    Object.assign(header.style, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px"
+    })
+
+    const titleGroup = document.createElement("div")
+    Object.assign(titleGroup.style, {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px"
+    })
+
+    const iconSpan = document.createElement("span")
+    iconSpan.textContent = icon
+    iconSpan.style.fontSize = "18px"
+    titleGroup.appendChild(iconSpan)
+
+    const titleSpan = document.createElement("span")
+    titleSpan.textContent = title
+    Object.assign(titleSpan.style, {
+      fontSize: "13px",
+      fontWeight: "700",
+      color: accentColor,
+      letterSpacing: "-0.01em"
+    })
+    titleGroup.appendChild(titleSpan)
+    header.appendChild(titleGroup)
+
+    const closeBtn = document.createElement("button")
+    closeBtn.innerHTML = "&times;"
+    Object.assign(closeBtn.style, {
+      background: "none",
+      border: "none",
+      color: "#94a3b8",
+      fontSize: "18px",
+      cursor: "pointer",
+      padding: "0 4px",
+      lineHeight: "1",
+      transition: "color 0.15s"
+    })
+    closeBtn.onmouseover = () => { closeBtn.style.color = "#ffffff" }
+    closeBtn.onmouseout = () => { closeBtn.style.color = "#94a3b8" }
+
+    const dismissToast = () => {
+      toast.style.opacity = "0"
+      toast.style.transform = "translateY(12px)"
+      setTimeout(() => {
+        toast.remove()
+        if (this.timeLimitToastEl === toast) {
+          this.timeLimitToastEl = null
+        }
+      }, 250)
+    }
+
+    closeBtn.addEventListener("click", dismissToast)
+    header.appendChild(closeBtn)
+    toast.appendChild(header)
+
+    const bodyText = document.createElement("div")
+    bodyText.textContent = subtitle
+    Object.assign(bodyText.style, {
+      fontSize: "12px",
+      lineHeight: "1.4",
+      color: "#cbd5e1"
+    })
+    toast.appendChild(bodyText)
+
+    // Action buttons row
+    const btnRow = document.createElement("div")
+    Object.assign(btnRow.style, {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px",
+      marginTop: "2px"
+    })
+
+    if (onManageLimit) {
+      const manageBtn = document.createElement("button")
+      manageBtn.textContent = "Manage Limit"
+      Object.assign(manageBtn.style, {
+        background: "rgba(255, 255, 255, 0.08)",
+        border: "1px solid rgba(255, 255, 255, 0.14)",
+        borderRadius: "8px",
+        padding: "5px 12px",
+        fontSize: "11px",
+        fontWeight: "600",
+        color: "#f8fafc",
+        cursor: "pointer",
+        transition: "background 0.15s ease"
+      })
+      manageBtn.onmouseover = () => { manageBtn.style.background = "rgba(255, 255, 255, 0.16)" }
+      manageBtn.onmouseout = () => { manageBtn.style.background = "rgba(255, 255, 255, 0.08)" }
+      manageBtn.addEventListener("click", () => {
+        dismissToast()
+        onManageLimit()
+      })
+      btnRow.appendChild(manageBtn)
+    }
+
+    const dismissBtn = document.createElement("button")
+    dismissBtn.textContent = "Dismiss"
+    Object.assign(dismissBtn.style, {
+      background: accentBg,
+      border: `1px solid ${accentColor}`,
+      borderRadius: "8px",
+      padding: "5px 12px",
+      fontSize: "11px",
+      fontWeight: "600",
+      color: accentColor,
+      cursor: "pointer",
+      transition: "opacity 0.15s ease"
+    })
+    dismissBtn.onmouseover = () => { dismissBtn.style.opacity = "0.8" }
+    dismissBtn.onmouseout = () => { dismissBtn.style.opacity = "1" }
+    dismissBtn.addEventListener("click", dismissToast)
+    btnRow.appendChild(dismissBtn)
+
+    toast.appendChild(btnRow)
+    document.body.appendChild(toast)
+    this.timeLimitToastEl = toast
+
+    // Trigger enter animation
+    requestAnimationFrame(() => {
+      toast.style.opacity = "1"
+      toast.style.transform = "translateY(0)"
+    })
+
+    // Auto-dismiss after 12 seconds
+    this.timeLimitToastTimer = setTimeout(dismissToast, 12000)
+  }
+
+  private dailyLimitBlockerEl: HTMLDivElement | null = null
+  private pauseEnforcementListener: ((e: Event) => void) | null = null
+
+  public showDailyLimitBlocker(
+    limitMinutes: number,
+    totalUsedMs: number,
+    onOpenSettings?: () => void
+  ): void {
+    if (this.dailyLimitBlockerEl?.isConnected) {
+      this.pauseAllVideos()
+      return
+    }
+
+    this.removeDailyLimitBlocker()
+    this.pauseAllVideos()
+
+    // Continuously enforce pause so videos and shorts cannot play in background
+    if (!this.pauseEnforcementListener) {
+      this.pauseEnforcementListener = (e: Event) => {
+        const target = e.target as HTMLVideoElement
+        if (target && typeof target.pause === "function") {
+          try {
+            target.pause()
+          } catch {}
+        }
+      }
+      document.addEventListener("play", this.pauseEnforcementListener, true)
+    }
+
+    const quotes = [
+      "\"Starve your distractions, feed your focus.\"",
+      "\"Time is what we want most, but what we use worst.\" — William Penn",
+      "\"Disconnect to reconnect with what truly matters in your life.\"",
+      "\"The key is in not spending time, but in investing it.\" — Stephen R. Covey"
+    ]
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)]
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "local time"
+    const limitLabel = formatMinutes(limitMinutes)
+    const usedLabel = formatDuration(totalUsedMs)
+
+    const overlay = document.createElement("div")
+    overlay.setAttribute("data-youdefinetube-daily-limit-blocker", "1")
+    Object.assign(overlay.style, {
+      position: "fixed",
+      inset: "0",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      background: "linear-gradient(135deg, rgba(16, 16, 20, 0.98), rgba(8, 8, 12, 0.99))",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      zIndex: String(OVERLAY_Z),
+      color: "#ffffff",
+      fontFamily: OVERLAY_THEME.font,
+      opacity: "0",
+      transition: "opacity 0.3s ease"
+    })
+
+    const card = document.createElement("div")
+    Object.assign(card.style, {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      textAlign: "center",
+      width: "min(520px, 100%)",
+      padding: "36px 32px",
+      borderRadius: "24px",
+      background: "rgba(255, 255, 255, 0.03)",
+      border: "1px solid rgba(255, 255, 255, 0.09)",
+      boxShadow: "0 24px 80px rgba(0, 0, 0, 0.6)"
+    })
+
+    const iconEl = document.createElement("div")
+    Object.assign(iconEl.style, {
+      fontSize: "64px",
+      marginBottom: "16px",
+      filter: "drop-shadow(0 0 16px rgba(239, 68, 68, 0.4))",
+      animation: "ydt-pulse 2s infinite ease-in-out"
+    })
+    iconEl.textContent = "🛑"
+    card.appendChild(iconEl)
+
+    ensureKeyframes(
+      "ydt-limit-blocker-styles",
+      `
+        @keyframes ydt-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.9; }
+          50% { transform: scale(1.08); opacity: 1; }
+        }
+      `
+    )
+
+    const title = document.createElement("h2")
+    Object.assign(title.style, {
+      fontSize: "28px",
+      fontWeight: "800",
+      margin: "0 0 10px 0",
+      letterSpacing: "-0.02em",
+      color: "#ffffff"
+    })
+    title.textContent = "Daily Limit Reached"
+    card.appendChild(title)
+
+    const desc = document.createElement("p")
+    Object.assign(desc.style, {
+      fontSize: "15px",
+      lineHeight: "1.6",
+      margin: "0 0 20px 0",
+      color: "#94a3b8"
+    })
+    desc.innerHTML = `You've reached your daily allowance of <strong>${limitLabel}</strong> on YouTube today.`
+    card.appendChild(desc)
+
+    // Usage summary box
+    const statBox = document.createElement("div")
+    Object.assign(statBox.style, {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      padding: "12px 16px",
+      borderRadius: "12px",
+      background: "rgba(239, 68, 68, 0.08)",
+      border: "1px solid rgba(239, 68, 68, 0.25)",
+      marginBottom: "20px",
+      boxSizing: "border-box"
+    })
+
+    const statLeft = document.createElement("div")
+    statLeft.style.textAlign = "left"
+    statLeft.innerHTML = `
+      <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #ef4444; letter-spacing: 0.04em;">Time Spent Today</div>
+      <div style="font-size: 18px; font-weight: 800; color: #ffffff; margin-top: 2px;">${usedLabel} <span style="font-size: 12px; font-weight: 400; color: #94a3b8;">/ ${limitLabel}</span></div>
+    `
+    statBox.appendChild(statLeft)
+
+    const statRight = document.createElement("div")
+    statRight.style.textAlign = "right"
+    statRight.innerHTML = `
+      <div style="font-size: 11px; font-weight: 600; color: #94a3b8;">Status</div>
+      <div style="font-size: 13px; font-weight: 700; color: #ef4444; margin-top: 2px;">100% Used · Blocked</div>
+    `
+    statBox.appendChild(statRight)
+    card.appendChild(statBox)
+
+    // Quote
+    const quoteCard = document.createElement("div")
+    Object.assign(quoteCard.style, {
+      fontSize: "13.5px",
+      fontStyle: "italic",
+      lineHeight: "1.5",
+      color: "rgba(255, 255, 255, 0.75)",
+      padding: "14px 16px",
+      background: "rgba(255, 255, 255, 0.02)",
+      borderRadius: "12px",
+      borderLeft: "3px solid #ef4444",
+      marginBottom: "20px",
+      width: "100%",
+      boxSizing: "border-box",
+      textAlign: "left"
+    })
+    quoteCard.textContent = randomQuote
+    card.appendChild(quoteCard)
+
+    // Midnight notice
+    const resetNotice = document.createElement("div")
+    Object.assign(resetNotice.style, {
+      fontSize: "12px",
+      color: "#64748b",
+      marginBottom: "24px"
+    })
+    resetNotice.textContent = `⏱️ Resets automatically at 12:00 AM (${userTimeZone})`
+    card.appendChild(resetNotice)
+
+    // Buttons container
+    const btnContainer = document.createElement("div")
+    Object.assign(btnContainer.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      width: "100%"
+    })
+
+    const closeTabBtn = document.createElement("button")
+    closeTabBtn.textContent = "Close YouTube"
+    Object.assign(closeTabBtn.style, {
+      padding: "14px 24px",
+      fontSize: "15px",
+      fontWeight: "700",
+      borderRadius: "12px",
+      border: "none",
+      background: "#dc2626",
+      color: "#ffffff",
+      cursor: "pointer",
+      boxShadow: "0 4px 16px rgba(220, 38, 38, 0.35)",
+      transition: "background 0.2s, transform 0.1s"
+    })
+    closeTabBtn.onmouseover = () => { closeTabBtn.style.background = "#ef4444" }
+    closeTabBtn.onmouseout = () => { closeTabBtn.style.background = "#dc2626" }
+    closeTabBtn.addEventListener("click", () => {
+      safeSendMessage({ type: MESSAGES.CLOSE_ALL_TABS })
+    })
+    btnContainer.appendChild(closeTabBtn)
+
+    if (onOpenSettings) {
+      const adjustBtn = document.createElement("button")
+      adjustBtn.textContent = "Adjust Daily Limit"
+      Object.assign(adjustBtn.style, {
+        padding: "12px 24px",
+        fontSize: "13.5px",
+        fontWeight: "600",
+        borderRadius: "12px",
+        border: "1px solid rgba(255, 255, 255, 0.14)",
+        background: "rgba(255, 255, 255, 0.05)",
+        color: "#e2e8f0",
+        cursor: "pointer",
+        transition: "background 0.2s"
+      })
+      adjustBtn.onmouseover = () => { adjustBtn.style.background = "rgba(255, 255, 255, 0.1)" }
+      adjustBtn.onmouseout = () => { adjustBtn.style.background = "rgba(255, 255, 255, 0.05)" }
+      adjustBtn.addEventListener("click", () => {
+        onOpenSettings()
+      })
+      btnContainer.appendChild(adjustBtn)
+    }
+
+    card.appendChild(btnContainer)
+    overlay.appendChild(card)
+    document.body.appendChild(overlay)
+    this.dailyLimitBlockerEl = overlay
+
+    requestAnimationFrame(() => {
+      overlay.style.opacity = "1"
+    })
+  }
+
+  public removeDailyLimitBlocker(): void {
+    if (this.dailyLimitBlockerEl) {
+      this.dailyLimitBlockerEl.remove()
+      this.dailyLimitBlockerEl = null
+    }
+    if (this.pauseEnforcementListener) {
+      document.removeEventListener("play", this.pauseEnforcementListener, true)
+      this.pauseEnforcementListener = null
+    }
+  }
+
+  private pauseAllVideos(): void {
+    document.querySelectorAll<HTMLVideoElement>("video").forEach((v) => {
+      try {
+        if (!v.paused) v.pause()
+      } catch {}
+    })
   }
 }

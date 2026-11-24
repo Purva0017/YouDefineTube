@@ -12,7 +12,7 @@ export const TIMERS = {
   RETRY_PAUSE: 200,
   MAX_PAUSE_ATTEMPTS: 30,
   /** Min interval between chrome.storage writes for time tracking */
-  PERSIST_DEBOUNCE_MS: 8000,
+  PERSIST_DEBOUNCE_MS: 3000,
   /** How often to flush the full history object (today + sessions write more often) */
   HISTORY_PERSIST_MS: 45000
 }

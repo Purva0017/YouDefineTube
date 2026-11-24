@@ -7,7 +7,8 @@ export const MESSAGES = {
   GET_CURRENT_TIME: "YDT_GET_CURRENT_TIME",
   SEEK_TO_TIME: "YDT_SEEK_TO_TIME",
   TOGGLE_INLINE_PANEL: "YDT_TOGGLE_INLINE_PANEL",
-  OPEN_INLINE_PANEL: "YDT_OPEN_INLINE_PANEL"
+  OPEN_INLINE_PANEL: "YDT_OPEN_INLINE_PANEL",
+  TIME_LIMIT_WARNING: "YDT_TIME_LIMIT_WARNING"
 } as const
 
 export type TimeTrackingReportMessage = {
@@ -34,9 +35,20 @@ export type SeekToTimeMessage = {
   }
 }
 
+export type TimeLimitWarningMessage = {
+  type: typeof MESSAGES.TIME_LIMIT_WARNING
+  payload: {
+    level: 50 | 90 | 100
+    usedMs: number
+    limitMs: number
+    limitMinutes: number
+  }
+}
+
 export type Message =
   | TimeTrackingReportMessage
   | CloseTabsMessage
   | CloseCurrentTabMessage
   | GetCurrentTimeMessage
   | SeekToTimeMessage
+  | TimeLimitWarningMessage

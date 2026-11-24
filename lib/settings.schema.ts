@@ -35,5 +35,10 @@ export const settingsSchema = z.object({
   enableFocusBlocker: z.boolean(),
   focusSchedules: z.array(focusScheduleSchema),
   enableFrictionScreen: z.boolean(),
-  isFocusCategoryOpen: z.boolean()
+  isFocusCategoryOpen: z.boolean(),
+  enableDailyTimeLimit: z.boolean(),
+  dailyTimeLimitMinutes: z.number().int().min(1).max(1440),
+  timeLimitWarning50Dismissed: z.string(),
+  timeLimitWarning90Dismissed: z.string(),
+  timeLimitWarning100Dismissed: z.string()
 })

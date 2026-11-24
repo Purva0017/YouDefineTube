@@ -344,6 +344,31 @@ export function MainDashboard({ colors, isDark }: { colors: ThemeColors; isDark:
               <div className="setting-row">
                 <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.text, fontSize: 13.5, fontWeight: 500 }}>
                   <div style={{ opacity: 0.85, display: "flex", alignItems: "center", width: 20, height: 20, justifyContent: "center" }}>
+                    <span style={{ fontSize: 14 }}>🎯</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span>
+                      Daily YouTube Limit{" "}
+                      <span style={{ fontSize: 11, fontWeight: 600, color: colors.muted }}>
+                        ({(settings?.dailyTimeLimitMinutes || 120) >= 60 ? `${Math.floor((settings?.dailyTimeLimitMinutes || 120) / 60)}h ${(settings?.dailyTimeLimitMinutes || 120) % 60 ? `${(settings?.dailyTimeLimitMinutes || 120) % 60}m` : ""}`.trim() : `${settings?.dailyTimeLimitMinutes || 120}m`})
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 11, color: colors.muted, fontWeight: 400 }}>
+                      Warns at 50% & 90% · Resets at 12:00 AM
+                    </span>
+                  </div>
+                </div>
+                <CustomToggle
+                  checked={!!settings?.enableDailyTimeLimit}
+                  onChange={() => toggleSetting("enableDailyTimeLimit")}
+                  isDark={isDark}
+                  colors={colors}
+                />
+              </div>
+
+              <div className="setting-row">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, color: colors.text, fontSize: 13.5, fontWeight: 500 }}>
+                  <div style={{ opacity: 0.85, display: "flex", alignItems: "center", width: 20, height: 20, justifyContent: "center" }}>
                     <span style={{ fontSize: 14 }}>🧠</span>
                   </div>
                   <span>Friction Screen (Intentional Goal)</span>

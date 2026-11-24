@@ -7,6 +7,7 @@ import {
   type DailyUsage,
   type TimeTrackingSnapshot
 } from "~/lib/time-tracking"
+import { MESSAGES } from "~/lib/messaging"
 import { SettingsService } from "./SettingsService"
 
 type LiveSession = TimeTrackingSnapshot & {
@@ -43,8 +44,12 @@ export class TimeTrackingService {
     const storageArea = chrome.storage.session || chrome.storage.local
     const sessionData = (await storageArea.get(STORAGE_KEYS.LIVE_SESSIONS))[STORAGE_KEYS.LIVE_SESSIONS] || {}
 
+    const now = Date.now()
     this.liveSessions = new Map(
-      Object.entries(sessionData).map(([tabId, session]) => [Number(tabId), session as LiveSession])
+      Object.entries(sessionData).map(([tabId, session]) => [
+        Number(tabId),
+        { ...(session as LiveSession), lastTickAt: now }
+      ])
     )
 
     await this.checkDateChange()
@@ -66,11 +71,31 @@ export class TimeTrackingService {
     const storedToday = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
 
     if (!storedToday || storedToday.date !== todayKey) {
-      const freshUsage = this.touchUsage(todayKey)
+      if (storedToday) {
+        // Archive previous day's usage into history
+        this.historyCache[storedToday.date] = storedToday
+        this.historyDirty = true
+        await this.storage.set(STORAGE_KEYS.TIME_TRACKING_HISTORY, this.historyCache)
+      }
+      const freshUsage = createEmptyDailyUsage(todayKey)
+      this.historyCache[todayKey] = freshUsage
       await this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, freshUsage)
+
+      // Reset daily time limit warnings on date reset
+      void this.settingsService.updateSettings({
+        timeLimitWarning50Dismissed: "",
+        timeLimitWarning90Dismissed: "",
+        timeLimitWarning100Dismissed: ""
+      })
       return true
+    } else {
+      // Ensure historyCache holds the populated todayUsage and doesn't discard it
+      const existing = this.historyCache[todayKey]
+      this.historyCache[todayKey] = existing
+        ? this.mergeTodayUsage(existing, storedToday)
+        : storedToday
+      return false
     }
-    return false
   }
 
   public setupMidnightAlarm(): void {
@@ -87,6 +112,22 @@ export class TimeTrackingService {
       return
     }
 
+    // If this tab is reporting as active, deactivate other tabs in liveSessions
+    // so multiple open tabs never double-count time simultaneously
+    if (this.isSnapshotActive(snapshot)) {
+      for (const [otherTabId, otherSession] of this.liveSessions.entries()) {
+        if (otherTabId !== tabId && this.isSnapshotActive(otherSession)) {
+          this.addDurationToHistory(otherSession.lastTickAt, now, otherSession)
+          this.liveSessions.set(otherTabId, {
+            ...otherSession,
+            isDocumentVisible: false,
+            isWindowFocused: false,
+            lastTickAt: now
+          })
+        }
+      }
+    }
+
     const previous = this.liveSessions.get(tabId)
 
     if (previous) {
@@ -98,7 +139,59 @@ export class TimeTrackingService {
       lastTickAt: now
     })
 
+    // Immediately write today's usage so the UI always has fresh data.
+    // The full persist (history + session) is debounced.
+    await this.persistTodayImmediate()
+    this.checkTimeLimitWarnings()
     this.schedulePersist()
+  }
+
+  public async handleTabActivated(tabId: number): Promise<void> {
+    const now = Date.now()
+    if (!this.settingsService.settings.isExtensionEnabled) return
+
+    for (const [otherTabId, otherSession] of this.liveSessions.entries()) {
+      if (otherTabId !== tabId && this.isSnapshotActive(otherSession)) {
+        this.addDurationToHistory(otherSession.lastTickAt, now, otherSession)
+        this.liveSessions.set(otherTabId, {
+          ...otherSession,
+          isDocumentVisible: false,
+          isWindowFocused: false,
+          lastTickAt: now
+        })
+      }
+    }
+
+    const current = this.liveSessions.get(tabId)
+    if (current) {
+      this.liveSessions.set(tabId, {
+        ...current,
+        isDocumentVisible: true,
+        isWindowFocused: true,
+        lastTickAt: now
+      })
+    }
+
+    this.schedulePersist()
+  }
+
+  public async handleWindowFocusChanged(windowId: number): Promise<void> {
+    const now = Date.now()
+    if (!this.settingsService.settings.isExtensionEnabled) return
+
+    if (windowId === chrome.windows.WINDOW_ID_NONE) {
+      for (const [tabId, session] of this.liveSessions.entries()) {
+        if (this.isSnapshotActive(session) && (!session.isVideoPlaying || session.pageType !== "watch")) {
+          this.addDurationToHistory(session.lastTickAt, now, session)
+          this.liveSessions.set(tabId, {
+            ...session,
+            isWindowFocused: false,
+            lastTickAt: now
+          })
+        }
+      }
+      this.schedulePersist()
+    }
   }
 
   public async handleTabRemoved(tabId: number): Promise<void> {
@@ -114,8 +207,12 @@ export class TimeTrackingService {
   private addDurationToHistory(startAt: number, endAt: number, snapshot: TimeTrackingSnapshot): void {
     if (endAt <= startAt || !this.isSnapshotActive(snapshot)) return
 
+    // Cap single tick duration (max 60 seconds) to avoid abnormal jumps after machine sleep
+    const MAX_TICK_GAP_MS = 60000
+    const effectiveStartAt = Math.max(startAt, endAt - MAX_TICK_GAP_MS)
+
     const bucket = this.getBucketForSnapshot(snapshot)
-    let cursor = startAt
+    let cursor = effectiveStartAt
 
     while (cursor < endAt) {
       const segmentEnd = Math.min(getNextLocalMidnight(cursor), endAt)
@@ -144,7 +241,10 @@ export class TimeTrackingService {
   }
 
   private isSnapshotActive(snapshot: TimeTrackingSnapshot): boolean {
-    return snapshot.isDocumentVisible && snapshot.isWindowFocused
+    return (
+      (snapshot.isDocumentVisible && snapshot.isWindowFocused) ||
+      (snapshot.pageType === "watch" && snapshot.isVideoPlaying)
+    )
   }
 
   private getBucketForSnapshot(snapshot: TimeTrackingSnapshot): "watchVideoMs" | "searchMs" | "browseMs" | null {
@@ -170,25 +270,6 @@ export class TimeTrackingService {
     await this.flushPersist()
   }
 
-  private getUnpersistedMsForDate(dateKey: string, now = Date.now()): number {
-    let total = 0
-
-    for (const session of this.liveSessions.values()) {
-      if (!this.isSnapshotActive(session)) continue
-
-      let cursor = session.lastTickAt
-      while (cursor < now) {
-        const segmentEnd = Math.min(getNextLocalMidnight(cursor), now)
-        if (getLocalDateKey(cursor) === dateKey) {
-          total += segmentEnd - cursor
-        }
-        cursor = segmentEnd
-      }
-    }
-
-    return total
-  }
-
   private schedulePersist(): void {
     this.persistDirty = true
     if (this.persistTimer) return
@@ -211,10 +292,21 @@ export class TimeTrackingService {
     await this.persistNow()
   }
 
+  /** Lightweight persist: writes only TIME_TRACKING_TODAY so the popup UI
+   *  always has up-to-date data even if the full persist hasn't fired yet. */
+  private async persistTodayImmediate(): Promise<void> {
+    const todayKey = getLocalDateKey()
+    const storedToday = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
+    const cached = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
+    const todayUsage = this.mergeTodayUsage(cached, storedToday)
+    this.historyCache[todayKey] = todayUsage
+    await this.storage.set(STORAGE_KEYS.TIME_TRACKING_TODAY, todayUsage)
+  }
+
   private async persistNow(): Promise<void> {
     const todayKey = getLocalDateKey()
-    const cached = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
     const storedToday = await this.storage.get<DailyUsage>(STORAGE_KEYS.TIME_TRACKING_TODAY)
+    const cached = this.historyCache[todayKey] || createEmptyDailyUsage(todayKey)
     const todayUsage = this.mergeTodayUsage(cached, storedToday)
     this.historyCache[todayKey] = todayUsage
 
@@ -242,8 +334,15 @@ export class TimeTrackingService {
       [STORAGE_KEYS.TIME_TRACKING_TODAY]: (chg) => {
         const next = chg?.newValue as DailyUsage | undefined
         if (!next?.date) return
-        const usage = this.touchUsage(next.date)
-        usage.updatedAt = Math.max(usage.updatedAt || 0, next.updatedAt || 0)
+        const todayKey = getLocalDateKey()
+        if (next.date !== todayKey) return
+
+        const existing = this.historyCache[todayKey]
+        if (existing) {
+          this.historyCache[todayKey] = this.mergeTodayUsage(existing, next)
+        } else {
+          this.historyCache[todayKey] = next
+        }
       }
     })
   }
@@ -252,7 +351,11 @@ export class TimeTrackingService {
     if (!stored || stored.date !== cached.date) return cached
 
     return {
-      ...cached,
+      date: cached.date,
+      totalYoutubeMs: Math.max(cached.totalYoutubeMs || 0, stored.totalYoutubeMs || 0),
+      watchVideoMs: Math.max(cached.watchVideoMs || 0, stored.watchVideoMs || 0),
+      browseMs: Math.max(cached.browseMs || 0, stored.browseMs || 0),
+      searchMs: Math.max(cached.searchMs || 0, stored.searchMs || 0),
       updatedAt: Math.max(cached.updatedAt || 0, stored.updatedAt || 0)
     }
   }
@@ -262,5 +365,140 @@ export class TimeTrackingService {
       console.error("Time tracking update failed", error)
     })
     return this.writeQueue
+  }
+
+  /** Check if daily time limit thresholds (50%, 90%) have been crossed
+   *  and broadcast a warning to all YouTube tabs + trigger native notification.
+   *  Each threshold fires once per day. */
+  private checkTimeLimitWarnings(): void {
+    const settings = this.settingsService.settings
+    if (!settings.enableDailyTimeLimit || !settings.dailyTimeLimitMinutes) return
+
+    const todayKey = getLocalDateKey()
+    const todayUsage = this.historyCache[todayKey]
+    if (!todayUsage) return
+
+    const limitMs = settings.dailyTimeLimitMinutes * 60 * 1000
+    const usedMs = todayUsage.totalYoutubeMs || 0
+    const usedPercent = (usedMs / limitMs) * 100
+
+    // If user increased limit and usage is now below thresholds, allow warnings to re-arm
+    if (usedPercent < 50 && settings.timeLimitWarning50Dismissed === todayKey) {
+      void this.settingsService.updateSettings({ timeLimitWarning50Dismissed: "" })
+    }
+    if (usedPercent < 90 && settings.timeLimitWarning90Dismissed === todayKey) {
+      void this.settingsService.updateSettings({ timeLimitWarning90Dismissed: "" })
+    }
+    if (usedPercent < 100 && settings.timeLimitWarning100Dismissed === todayKey) {
+      void this.settingsService.updateSettings({ timeLimitWarning100Dismissed: "" })
+    }
+
+    // 100% HARD BLOCK (highest priority)
+    if (usedPercent >= 100) {
+      const payload = {
+        level: 100 as const,
+        usedMs,
+        limitMs,
+        limitMinutes: settings.dailyTimeLimitMinutes
+      }
+      this.broadcastToYouTubeTabs({
+        type: MESSAGES.TIME_LIMIT_WARNING,
+        payload
+      })
+      if (settings.timeLimitWarning100Dismissed !== todayKey) {
+        this.showNativeNotification(payload)
+        void this.settingsService.updateSettings({ timeLimitWarning100Dismissed: todayKey })
+      }
+      return
+    }
+
+    // 90% warning (higher priority — check first)
+    if (usedPercent >= 90 && settings.timeLimitWarning90Dismissed !== todayKey) {
+      const payload = {
+        level: 90 as const,
+        usedMs,
+        limitMs,
+        limitMinutes: settings.dailyTimeLimitMinutes
+      }
+      this.broadcastToYouTubeTabs({
+        type: MESSAGES.TIME_LIMIT_WARNING,
+        payload
+      })
+      this.showNativeNotification(payload)
+      void this.settingsService.updateSettings({ timeLimitWarning90Dismissed: todayKey })
+      return
+    }
+
+    // 50% warning
+    if (usedPercent >= 50 && settings.timeLimitWarning50Dismissed !== todayKey) {
+      const payload = {
+        level: 50 as const,
+        usedMs,
+        limitMs,
+        limitMinutes: settings.dailyTimeLimitMinutes
+      }
+      this.broadcastToYouTubeTabs({
+        type: MESSAGES.TIME_LIMIT_WARNING,
+        payload
+      })
+      this.showNativeNotification(payload)
+      void this.settingsService.updateSettings({ timeLimitWarning50Dismissed: todayKey })
+    }
+  }
+
+  /** Trigger a native Chrome notification for the time limit warning */
+  private showNativeNotification(payload: {
+    level: 50 | 90 | 100
+    usedMs: number
+    limitMs: number
+    limitMinutes: number
+  }): void {
+    if (!chrome.notifications?.create) return
+
+    const usedMinutes = Math.round(payload.usedMs / 60000)
+    let title: string
+    let message: string
+    let priority = 1
+
+    if (payload.level === 100) {
+      title = "🛑 YouDefineTube: Daily Limit Reached!"
+      message = `You've reached your daily limit of ${payload.limitMinutes} minutes on YouTube. YouTube is now blocked for today.`
+      priority = 2
+    } else if (payload.level === 90) {
+      const remainingMinutes = Math.max(0, payload.limitMinutes - usedMinutes)
+      title = "⚠️ YouDefineTube: 90% Daily Limit Reached!"
+      message = `You have used ${usedMinutes} of ${payload.limitMinutes} minutes on YouTube today. Only ${remainingMinutes} min remaining!`
+      priority = 2
+    } else {
+      title = "⏳ YouDefineTube: 50% Daily Limit Reached"
+      message = `You've reached half of your daily YouTube limit (${usedMinutes} of ${payload.limitMinutes} min).`
+      priority = 1
+    }
+
+    try {
+      chrome.notifications.create(`ydt-limit-${payload.level}`, {
+        type: "basic",
+        iconUrl: chrome.runtime.getURL ? chrome.runtime.getURL("assets/icon.png") : "assets/icon.png",
+        title,
+        message,
+        priority
+      })
+    } catch {
+      // Ignore notification creation errors (e.g. In mock environments)
+    }
+  }
+
+  /** Send a message to all open YouTube tabs */
+  private broadcastToYouTubeTabs(message: unknown): void {
+    chrome.tabs
+      .query({ url: ["https://www.youtube.com/*", "https://m.youtube.com/*"] })
+      .then((tabs) => {
+        for (const tab of tabs) {
+          if (tab.id) {
+            chrome.tabs.sendMessage(tab.id, message).catch(() => {})
+          }
+        }
+      })
+      .catch(() => {})
   }
 }

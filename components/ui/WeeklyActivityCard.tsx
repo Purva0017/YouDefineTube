@@ -38,8 +38,8 @@ export function WeeklyActivityCard({
     const isToday = i === 0
 
     const usage: DailyUsage = isToday
-      ? todayUsage || history?.[todayKey] || createEmptyDailyUsage(todayKey)
-      : history?.[key] || createEmptyDailyUsage(key)
+      ? (todayUsage?.date === todayKey ? todayUsage : null) || history?.[todayKey] || createEmptyDailyUsage(todayKey)
+      : history?.[key] || (todayUsage?.date === key ? todayUsage : null) || createEmptyDailyUsage(key)
 
     const shortDay = isToday
       ? "Today"

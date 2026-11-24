@@ -14,14 +14,7 @@ export class MessageHandler {
     return MessageHandler.instance
   }
 
-  public initialize(): void {
-    chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-      this.handleMessage(message, sender, sendResponse)
-      return true
-    })
-  }
-
-  private handleMessage(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): void {
+  public handleIncoming(message: Message, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void): void {
     switch (message.type) {
       case MESSAGES.TIME_TRACKING_REPORT:
         if (sender.tab?.id) {

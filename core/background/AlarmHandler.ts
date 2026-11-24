@@ -13,13 +13,7 @@ export class AlarmHandler {
     return AlarmHandler.instance
   }
 
-  public initialize(): void {
-    chrome.alarms.onAlarm.addListener((alarm) => {
-      this.handleAlarm(alarm)
-    })
-  }
-
-  private handleAlarm(alarm: chrome.alarms.Alarm): void {
+  public handleAlarm(alarm: chrome.alarms.Alarm): void {
     if (alarm.name === "midnight-reset") {
       void this.timeTrackingService.enqueue(async () => {
         await this.timeTrackingService.checkDateChange()

@@ -4,19 +4,70 @@ import { MessageHandler } from "~/core/background/MessageHandler"
 import { AlarmHandler } from "~/core/background/AlarmHandler"
 import { MESSAGES } from "~/lib/messaging"
 
-const initializeBackground = async () => {
-  const settingsService = SettingsService.getInstance()
-  const timeTrackingService = TimeTrackingService.getInstance()
-  const messageHandler = MessageHandler.getInstance()
-  const alarmHandler = AlarmHandler.getInstance()
+// CRITICAL: Register all Chrome event listeners synchronously at the top level
+// so they are captured even when the service worker is woken by an event.
+// Messages arriving before init completes are queued and replayed afterward.
 
-  // Initialize services
+const settingsService = SettingsService.getInstance()
+const timeTrackingService = TimeTrackingService.getInstance()
+const messageHandler = MessageHandler.getInstance()
+const alarmHandler = AlarmHandler.getInstance()
+
+// Queue for messages that arrive before initialization completes
+let earlyMessages: Array<{
+  message: any
+  sender: chrome.runtime.MessageSender
+  sendResponse: (response?: any) => void
+}> = []
+let isInitialized = false
+
+// Register the message listener synchronously so no messages are ever dropped
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (isInitialized) {
+    messageHandler.handleIncoming(message, sender, sendResponse)
+  } else {
+    earlyMessages.push({ message, sender, sendResponse })
+  }
+  return true // keep channel open for async sendResponse
+})
+
+// Register alarm listener synchronously
+chrome.alarms.onAlarm.addListener((alarm) => {
+  alarmHandler.handleAlarm(alarm)
+})
+
+// Register tab/window listeners synchronously
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void timeTrackingService.enqueue(async () => {
+    await timeTrackingService.handleTabRemoved(tabId)
+  })
+})
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  void timeTrackingService.enqueue(async () => {
+    await timeTrackingService.handleTabActivated(activeInfo.tabId)
+  })
+})
+
+if (chrome.windows?.onFocusChanged) {
+  chrome.windows.onFocusChanged.addListener((windowId) => {
+    void timeTrackingService.enqueue(async () => {
+      await timeTrackingService.handleWindowFocusChanged(windowId)
+    })
+  })
+}
+
+const initializeBackground = async () => {
+  // Initialize services (reads from storage)
   await settingsService.initialize()
   await timeTrackingService.initialize()
-  
-  // Initialize handlers
-  messageHandler.initialize()
-  alarmHandler.initialize()
+
+  // Mark as initialized and replay any queued messages
+  isInitialized = true
+  for (const { message, sender, sendResponse } of earlyMessages) {
+    messageHandler.handleIncoming(message, sender, sendResponse)
+  }
+  earlyMessages = []
 
   // Toolbar icon — open/toggle inline panel on YouTube, or open YouTube
   chrome.action.onClicked.addListener(async (tab) => {
@@ -38,13 +89,6 @@ const initializeBackground = async () => {
       return
     }
     await chrome.tabs.create({ url: "https://www.youtube.com" })
-  })
-
-  // Register tab removal listener
-  chrome.tabs.onRemoved.addListener((tabId) => {
-    void timeTrackingService.enqueue(async () => {
-      await timeTrackingService.handleTabRemoved(tabId)
-    })
   })
 }
 
